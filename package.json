@@ -3,11 +3,22 @@
   "version": "0.0.0",
   "description": "",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joshamaju/jamx"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "pnpm -r build",
+    "changeset": "changeset",
+    "release": "changeset publish",
+    "version": "changeset version",
+    "test": "pnpm --filter '!./templates/**' --filter '!./playground/**' -r test"
   },
   "keywords": [],
-  "author": "",
+  "author": "Joshua Amaju <joshsemail4work@gmail.com>",
   "license": "ISC",
-  "packageManager": "pnpm@10.14.0"
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "@changesets/cli": "^2.30.0"
+  }
 }

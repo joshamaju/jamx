@@ -49,10 +49,6 @@ function isTaskStateMeta(value: unknown): value is TaskStateMeta {
   );
 }
 
-function stripAnsi(value: string): string {
-  return value.replace(/\u001b\[[0-9;]*m/g, "");
-}
-
 const DEFAULT_FRAMES = ["-", "\\", "|", "/"] as const;
 const COLOR_RESET = "\u001b[0m";
 const COLOR_GREEN = "\u001b[32m";
@@ -181,7 +177,11 @@ export class TaskConsoleTransport implements Transport {
     this.renderActiveTasks();
   }
 
-  private completeTask(taskId: string, output: string, isError: boolean): void {
+  private completeTask(
+    taskId: string,
+    output: string,
+    _isError: boolean,
+  ): void {
     this.activeTasks.delete(taskId);
 
     this.clearRenderedTasks();

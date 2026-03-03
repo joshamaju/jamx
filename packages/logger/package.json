@@ -1,16 +1,46 @@
 {
   "name": "@jamx/logger",
   "version": "0.0.0",
-  "description": "Simple Logger",
+  "description": "Composable structured logging primitives for TypeScript and Node.js",
   "type": "module",
   "private": false,
+  "sideEffects": false,
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js",
+      "default": "./build/index.js"
+    },
+    "./Logger": {
+      "types": "./build/Logger.d.ts",
+      "import": "./build/Logger.js",
+      "default": "./build/Logger.js"
+    },
+    "./Formatter": {
+      "types": "./build/Formatter.d.ts",
+      "import": "./build/Formatter.js",
+      "default": "./build/Formatter.js"
+    },
+    "./Transport": {
+      "types": "./build/Transport.d.ts",
+      "import": "./build/Transport.js",
+      "default": "./build/Transport.js"
+    },
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
+    "prepublish": "pnpm build",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --noEmit",
+    "version": "changeset version",
+    "release": "changeset publish",
     "dev": "tsx ./example/index.ts"
   },
   "keywords": [
@@ -20,12 +50,23 @@
   ],
   "files": [
     "build",
+    "LICENSE",
+    "README.md",
     "package.json"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "author": "Joshua Amaju <joshsemail4work@gmail.com>",
-  "license": "ISC",
+  "license": "MIT",
   "packageManager": "pnpm@10.14.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joshamaju/jamx",
+    "directory": "packages/logger"
+  },
   "devDependencies": {
+    "@changesets/cli": "^2.30.0",
     "@types/node": "^25.3.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.2",
