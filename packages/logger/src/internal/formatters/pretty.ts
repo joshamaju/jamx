@@ -1,10 +1,5 @@
-import { Formatter, LogRecord, Severity } from "../../Logger.js";
-import { LoggerOptions } from "../logger.js";
+import { Formatter, LogRecord, Severity } from "../core.js";
 import { safeStringify } from "../shared.js";
-
-export interface NamedLoggerOptions extends LoggerOptions {
-  name: string;
-}
 
 export interface PrettyFormatterOptions {
   colorize?: boolean;

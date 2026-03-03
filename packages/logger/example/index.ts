@@ -12,32 +12,32 @@ import {
   Severity,
   TaskConsoleTransport,
   TextFormatter,
-} from "./index.js";
+} from "../src/index.js";
 
-const appLogger = createNamedLogger({
+const app_logger = createNamedLogger({
   name: "app",
   minSeverity: Severity.Debug,
   transport: new ConsoleTransport(new PrettyFormatter()),
 });
 
-appLogger.info("Application started", {
+app_logger.info("Application started", {
   env: "development",
   version: "1.0.0",
 });
 
-appLogger.error("Failed to load config", {
+app_logger.error("Failed to load config", {
   file: "./config.json",
   error: new Error("ENOENT"),
 });
 
-const memoryTransport = new MemoryTransport();
+const memory_transport = new MemoryTransport();
 
 const combinedTransport = new CompositeTransport([
   new ConsoleTransport(new JsonFormatter()),
-  memoryTransport,
+  memory_transport,
 ]);
 
-const apiLogger = new Logger({
+const api_logger = new Logger({
   minSeverity: Severity.Trace,
   transport: combinedTransport,
   meta: {
@@ -45,25 +45,22 @@ const apiLogger = new Logger({
   },
 });
 
-apiLogger.log(Severity.Debug, "Incoming request", {
+api_logger.log(Severity.Debug, "Incoming request", {
   method: "GET",
   path: "/health",
   requestId: "req_123",
 });
 
-const requestLogger = createContextLogger(apiLogger, {
-  logger: "api",
-}).child({
-  requestId: "req_123",
-  userId: "user_42",
-});
+const request_logger = createContextLogger(api_logger, { logger: "api" }).child(
+  { requestId: "req_123", userId: "user_42" },
+);
 
-requestLogger.info("Request completed", {
+request_logger.info("Request completed", {
   statusCode: 200,
   durationMs: 18,
 });
 
-const workerLogger = createLogger({
+const worker_logger = createLogger({
   minSeverity: Severity.Info,
   transport: new ConsoleTransport(new TextFormatter()),
   meta: {
@@ -72,36 +69,51 @@ const workerLogger = createLogger({
   },
 });
 
-workerLogger.log(Severity.Warn, "Retrying job", {
+worker_logger.log(Severity.Warn, "Retrying job", {
   jobId: "job_99",
   attempt: 2,
 });
 
-console.log("Buffered logs:", memoryTransport.logs);
+console.log("Buffered logs:", memory_transport.logs);
 
-const taskLogger = createTaskLogger(
+const task_logger = createTaskLogger(
   createNamedLogger({
     name: "tasks",
     transport: new TaskConsoleTransport({
       formatter: new PrettyFormatter({ colorize: false }),
       colorize: false,
       interactive: true,
+      prefix: "task",
     }),
   }),
 );
 
-const userSyncTask = taskLogger.start("Syncing user", {
+const user_sync_task = task_logger.start("Syncing user", {
   meta: {
     userId: "user_42",
   },
 });
 
-await new Promise((r) => setTimeout(r, 3000));
+const org_sync_task = task_logger.start("Fetching organization", {
+  meta: {
+    orgId: "org_12",
+  },
+});
 
-userSyncTask.update("Syncing user", {
+await new Promise((r) => setTimeout(r, 800));
+
+user_sync_task.update("Syncing user", {
   progress: "50%",
 });
 
-userSyncTask.success("Synced user", {
+await new Promise((r) => setTimeout(r, 800));
+
+org_sync_task.success("Fetched organization", {
+  durationMs: 1600,
+});
+
+await new Promise((r) => setTimeout(r, 800));
+
+user_sync_task.success("Synced user", {
   durationMs: 120,
 });

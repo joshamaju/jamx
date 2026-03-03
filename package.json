@@ -1,22 +1,13 @@
 {
-  "name": "@jamx/logger",
+  "name": "jamx-monorepo",
   "version": "0.0.0",
-  "description": "Simple Logger",
-  "type": "module",
+  "description": "",
+  "private": true,
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "dev": "tsx ./examples.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["logger", "log", "console"],
-  "files": ["build", "package.json"],
-  "author": "Joshua Amaju <joshsemail4work@gmail.com>",
+  "keywords": [],
+  "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.14.0",
-  "devDependencies": {
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.2",
-    "vitest": "^4.0.18"
-  }
+  "packageManager": "pnpm@10.14.0"
 }

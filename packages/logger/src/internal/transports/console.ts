@@ -1,4 +1,4 @@
-import { Formatter, LogRecord, Severity, Transport } from "../../Logger.js";
+import { Formatter, LogRecord, Severity, Transport } from "../core.js";
 
 export class ConsoleTransport implements Transport {
   constructor(private readonly formatter: Formatter) {}

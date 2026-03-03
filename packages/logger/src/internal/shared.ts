@@ -1,4 +1,4 @@
-import { LogMeta, Severity } from "../Logger.js";
+import { LogMeta, Severity } from "./core.js";
 
 export const DEFAULT_CLOCK = () => new Date();
 

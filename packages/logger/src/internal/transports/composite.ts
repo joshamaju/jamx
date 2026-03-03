@@ -1,4 +1,4 @@
-import { LogRecord, Transport } from "../../Logger.js";
+import { LogRecord, Transport } from "../core.js";
 
 export class CompositeTransport implements Transport {
   constructor(private readonly transports: readonly Transport[]) {}

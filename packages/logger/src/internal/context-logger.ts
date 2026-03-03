@@ -1,4 +1,5 @@
-import { ILogger, LogMeta, NamedLoggerOptions, Severity } from "../Logger.js";
+import { ILogger, LogMeta, Severity } from "./core.js";
+import { NamedLoggerOptions } from "./types.js";
 import { createLogger } from "./logger.js";
 import { assertMeta } from "./shared.js";
 

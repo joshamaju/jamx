@@ -5,12 +5,12 @@ import {
   type LogRecord,
   type Transport,
   Severity,
-} from "../../Logger.js";
+} from "../core.js";
 import { assertMeta } from "../shared.js";
 
-type TaskStatus = "start" | "update" | "success" | "error";
+export type TaskStatus = "start" | "update" | "success" | "error";
 
-interface TaskStateMeta {
+export interface TaskStateMeta {
   id: string;
   status: TaskStatus;
 }
@@ -25,6 +25,10 @@ export interface TaskConsoleTransportOptions {
   formatter: Formatter;
   colorize?: boolean;
   interactive?: boolean;
+  frames?: readonly string[];
+  prefix?: string;
+  successSuffix?: string;
+  errorSuffix?: string;
   write?: (chunk: string) => void;
 }
 
@@ -48,6 +52,12 @@ function isTaskStateMeta(value: unknown): value is TaskStateMeta {
 function stripAnsi(value: string): string {
   return value.replace(/\u001b\[[0-9;]*m/g, "");
 }
+
+const DEFAULT_FRAMES = ["-", "\\", "|", "/"] as const;
+const COLOR_RESET = "\u001b[0m";
+const COLOR_GREEN = "\u001b[32m";
+const COLOR_RED = "\u001b[31m";
+const COLOR_DIM = "\u001b[2m";
 
 function getProcessLike(): {
   stdout?: { write?: (chunk: string) => void; isTTY?: boolean };
@@ -86,12 +96,21 @@ function getDisplayLog(log: LogRecord): LogRecord {
   };
 }
 
+interface ActiveTaskState {
+  frameIndex: number;
+  output: string;
+}
+
 export class TaskConsoleTransport implements Transport {
-  private activeLineWidth = 0;
+  private readonly activeTasks = new Map<string, ActiveTaskState>();
   private readonly colorize: boolean;
+  private readonly errorSuffix: string;
   private readonly formatter: Formatter;
+  private readonly frames: readonly string[];
   private readonly interactive: boolean;
-  private activeTaskId: string | null = null;
+  private readonly prefix: string;
+  private renderedTaskCount = 0;
+  private readonly successSuffix: string;
   private readonly write: (chunk: string) => void;
 
   constructor({
@@ -99,11 +118,19 @@ export class TaskConsoleTransport implements Transport {
     write = getDefaultWrite(),
     interactive = getProcessLike().stdout?.isTTY ?? false,
     colorize = true,
+    frames = DEFAULT_FRAMES,
+    prefix = "",
+    successSuffix = "[ok]",
+    errorSuffix = "[x]",
   }: TaskConsoleTransportOptions) {
     this.formatter = formatter;
     this.write = write;
     this.interactive = interactive;
     this.colorize = colorize;
+    this.frames = frames.length > 0 ? frames : DEFAULT_FRAMES;
+    this.prefix = prefix.trim();
+    this.successSuffix = successSuffix;
+    this.errorSuffix = errorSuffix;
   }
 
   capture(log: LogRecord): void {
@@ -111,7 +138,16 @@ export class TaskConsoleTransport implements Transport {
     const displayLog = getDisplayLog(log);
 
     if (!task) {
-      this.flushActiveLine();
+      this.clearRenderedTasks();
+      this.writeLine(
+        this.formatter.format(displayLog),
+        log.severity >= Severity.Warn,
+      );
+      this.renderActiveTasks();
+      return;
+    }
+
+    if (!this.interactive) {
       this.writeLine(
         this.formatter.format(displayLog),
         log.severity >= Severity.Warn,
@@ -119,64 +155,67 @@ export class TaskConsoleTransport implements Transport {
       return;
     }
 
-    if (
-      !this.interactive ||
-      this.activeTaskId === null ||
-      this.activeTaskId !== task.id
-    ) {
-      this.flushActiveLine();
-      this.activeTaskId = task.id;
-      this.renderActiveLine(this.formatter.format(displayLog));
-    } else {
-      this.renderActiveLine(this.formatter.format(displayLog));
-    }
+    const currentTask = this.activeTasks.get(task.id);
+    const frameIndex = currentTask?.frameIndex ?? 0;
 
     if (task.status === "success" || task.status === "error") {
-      this.completeActiveLine(log.severity >= Severity.Warn);
+      this.completeTask(
+        task.id,
+        this.decorateCompletedOutput(
+          this.formatter.format(displayLog),
+          log.severity >= Severity.Warn,
+        ),
+        log.severity >= Severity.Warn,
+      );
+      return;
     }
+
+    this.activeTasks.set(task.id, {
+      output: this.decorateActiveOutput(
+        this.formatter.format(displayLog),
+        frameIndex,
+      ),
+      frameIndex: (frameIndex + 1) % this.frames.length,
+    });
+
+    this.renderActiveTasks();
   }
 
-  private renderActiveLine(output: string): void {
+  private completeTask(taskId: string, output: string, isError: boolean): void {
+    this.activeTasks.delete(taskId);
+
+    this.clearRenderedTasks();
+    this.writeLine(output, false);
+    this.renderActiveTasks();
+  }
+
+  private clearRenderedTasks(): void {
+    if (!this.interactive || this.renderedTaskCount === 0) {
+      return;
+    }
+
+    this.write(`\u001b[${this.renderedTaskCount}A\r\u001b[J`);
+    this.renderedTaskCount = 0;
+  }
+
+  private renderActiveTasks(): void {
     if (!this.interactive) {
-      this.writeLine(output, false);
       return;
     }
 
-    const visibleWidth = stripAnsi(output).length;
-    const paddingWidth = Math.max(this.activeLineWidth - visibleWidth, 0);
-    const padding = paddingWidth > 0 ? " ".repeat(paddingWidth) : "";
-    this.write(`\r${output}${padding}`);
-    this.activeLineWidth = visibleWidth;
-  }
+    const lines = Array.from(this.activeTasks.values()).map(
+      (task) => task.output,
+    );
 
-  private completeActiveLine(isError: boolean): void {
-    if (!this.interactive) {
-      this.activeTaskId = null;
-      this.activeLineWidth = 0;
+    this.clearRenderedTasks();
+
+    if (lines.length === 0) {
+      this.renderedTaskCount = 0;
       return;
     }
 
-    const suffix = this.colorize
-      ? isError
-        ? " \u001b[31m[x]\u001b[0m"
-        : " \u001b[32m[ok]\u001b[0m"
-      : isError
-        ? " [x]"
-        : " [ok]";
-
-    this.write(`${suffix}\n`);
-    this.activeTaskId = null;
-    this.activeLineWidth = 0;
-  }
-
-  private flushActiveLine(): void {
-    if (!this.interactive || this.activeTaskId === null) {
-      return;
-    }
-
-    this.write("\n");
-    this.activeTaskId = null;
-    this.activeLineWidth = 0;
+    this.write(lines.join("\n"));
+    this.renderedTaskCount = lines.length;
   }
 
   private writeLine(output: string, isError: boolean): void {
@@ -189,6 +228,37 @@ export class TaskConsoleTransport implements Transport {
     }
 
     this.write(line);
+  }
+
+  private decorateActiveOutput(output: string, frameIndex: number): string {
+    const frame = this.frames[frameIndex] ?? this.frames[0];
+    const prefix = this.colorize ? `${COLOR_DIM}${frame}${COLOR_RESET}` : frame;
+
+    return this.joinLineParts([this.prefix, prefix, output]);
+  }
+
+  private decorateCompletedOutput(output: string, isError: boolean): string {
+    return this.joinLineParts([
+      this.prefix,
+      output,
+      this.getCompletionSuffix(isError),
+    ]);
+  }
+
+  private getCompletionSuffix(isError: boolean): string {
+    const suffix = isError ? this.errorSuffix : this.successSuffix;
+
+    if (!this.colorize) {
+      return suffix;
+    }
+
+    return isError
+      ? `${COLOR_RED}${suffix}${COLOR_RESET}`
+      : `${COLOR_GREEN}${suffix}${COLOR_RESET}`;
+  }
+
+  private joinLineParts(parts: string[]): string {
+    return parts.filter(Boolean).join(" ");
   }
 }
 

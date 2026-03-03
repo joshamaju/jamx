@@ -1,4 +1,4 @@
-import { LogRecord, Transport } from "../../Logger.js";
+import { LogRecord, Transport } from "../core.js";
 
 export class MemoryTransport implements Transport {
   readonly logs: LogRecord[] = [];

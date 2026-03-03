@@ -11,5 +11,6 @@
     "moduleResolution": "NodeNext",
     "forceConsistentCasingInFileNames": true,
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["test"]
 }

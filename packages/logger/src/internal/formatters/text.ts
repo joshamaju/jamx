@@ -1,4 +1,4 @@
-import { Formatter, LogRecord } from "../../Logger.js";
+import { Formatter, LogRecord } from "../core.js";
 import { safeStringify } from "../shared.js";
 
 export class TextFormatter implements Formatter {

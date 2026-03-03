@@ -1,12 +1,6 @@
 import { assertMeta, DEFAULT_CLOCK, getSeverityName } from "./shared.js";
-import { Transport, Severity, LogMeta, LogRecord, ILogger } from "../Logger.js";
-
-export interface LoggerOptions {
-  meta?: LogMeta;
-  clock?: () => Date;
-  transport: Transport;
-  minSeverity?: Severity;
-}
+import { Transport, Severity, LogMeta, LogRecord, ILogger } from "./core.js";
+import { LoggerOptions } from "./types.js";
 
 export class Logger implements ILogger {
   private readonly meta: LogMeta;
