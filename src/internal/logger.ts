@@ -1,14 +1,12 @@
-import {
-  assertMeta,
-  DEFAULT_CLOCK,
-  getSeverityName,
-  type ILogger,
-  type LogMeta,
-  type LogRecord,
-  type LoggerOptions,
-  Severity,
-  type Transport,
-} from "./shared.js";
+import { assertMeta, DEFAULT_CLOCK, getSeverityName } from "./shared.js";
+import { Transport, Severity, LogMeta, LogRecord, ILogger } from "../Logger.js";
+
+export interface LoggerOptions {
+  meta?: LogMeta;
+  clock?: () => Date;
+  transport: Transport;
+  minSeverity?: Severity;
+}
 
 export class Logger implements ILogger {
   private readonly meta: LogMeta;

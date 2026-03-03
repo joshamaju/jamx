@@ -1,11 +1,6 @@
+import { ILogger, LogMeta, NamedLoggerOptions, Severity } from "../Logger.js";
 import { createLogger } from "./logger.js";
-import {
-  assertMeta,
-  type ILogger,
-  type LogMeta,
-  type NamedLoggerOptions,
-  Severity,
-} from "./shared.js";
+import { assertMeta } from "./shared.js";
 
 export class ContextLogger implements ILogger {
   constructor(

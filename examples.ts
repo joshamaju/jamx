@@ -4,11 +4,13 @@ import {
   createContextLogger,
   createLogger,
   createNamedLogger,
+  createTaskLogger,
   JsonFormatter,
   Logger,
   MemoryTransport,
   PrettyFormatter,
   Severity,
+  TaskConsoleTransport,
   TextFormatter,
 } from "./index.js";
 
@@ -76,3 +78,30 @@ workerLogger.log(Severity.Warn, "Retrying job", {
 });
 
 console.log("Buffered logs:", memoryTransport.logs);
+
+const taskLogger = createTaskLogger(
+  createNamedLogger({
+    name: "tasks",
+    transport: new TaskConsoleTransport({
+      formatter: new PrettyFormatter({ colorize: false }),
+      colorize: false,
+      interactive: true,
+    }),
+  }),
+);
+
+const userSyncTask = taskLogger.start("Syncing user", {
+  meta: {
+    userId: "user_42",
+  },
+});
+
+await new Promise((r) => setTimeout(r, 3000));
+
+userSyncTask.update("Syncing user", {
+  progress: "50%",
+});
+
+userSyncTask.success("Synced user", {
+  durationMs: 120,
+});

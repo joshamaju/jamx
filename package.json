@@ -1,19 +1,22 @@
 {
-  "name": "logger-v2",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@jamx/logger",
+  "version": "0.0.0",
+  "description": "Simple Logger",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck",
-    "start": "tsx ./examples.ts"
+    "build": "tsc",
+    "test": "vitest run",
+    "dev": "tsx ./examples.ts",
+    "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["logger", "log", "console"],
+  "files": ["build", "package.json"],
+  "author": "Joshua Amaju <joshsemail4work@gmail.com>",
   "license": "ISC",
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
     "tsx": "^4.21.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.18"
   }
 }
