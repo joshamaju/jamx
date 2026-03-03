@@ -1,0 +1,19 @@
+{
+  "name": "logger-v2",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck",
+    "start": "tsx ./examples.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.2"
+  }
+}
