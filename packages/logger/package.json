@@ -1,6 +1,6 @@
 {
   "name": "@jamx/logger",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Composable structured logging primitives for TypeScript and Node.js",
   "type": "module",
   "private": false,
