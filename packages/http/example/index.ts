@@ -101,12 +101,12 @@ const decodeUser = defineDecoder<User>((input) => {
 });
 
 const handler = composeInterceptors(
-  withCache({ store: cache }),
-  withRetry({ retries: 1 }),
   withTimeout(250),
   withHeaders({ accept: "application/json" }),
   withAuth("demo-token"),
   requireJson,
+  withCache({ store: cache }),
+  withRetry({ retries: 1 }),
   annotateResponse,
 )(
   createFetchHandler({

@@ -1,14 +1,6 @@
-import { defineInterceptor, Interceptor, Result } from "./core.js";
+import { defineInterceptor, Result, TimeoutError } from "./core.js";
 import { isErr, isOk, ok } from "./either.js";
-
-export interface RetryOptions {
-  retries: number;
-  shouldRetry?: (
-    result: Result,
-    attempt: number,
-    request: Request,
-  ) => boolean | Promise<boolean>;
-}
+import type { Err } from "./either.js";
 
 export interface CacheStore {
   get(key: string): Response | undefined | Promise<Response | undefined>;
@@ -23,7 +15,7 @@ export interface CacheOptions {
 
 export const withHeaders = (
   headers: HeadersInit | ((request: Request) => HeadersInit),
-): Interceptor<never, Result> =>
+) =>
   defineInterceptor(async ({ request, next }) => {
     const nextHeaders = new Headers(request.headers);
     const extraHeaders =
@@ -47,27 +39,51 @@ export const withAuth = (
     return next(new Request(request, { headers }));
   });
 
-export const withTimeout = (timeoutMs: number): Interceptor<never, Result> =>
+export const withTimeout = (timeoutMs: number) =>
   defineInterceptor(async ({ request, next }) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timedRequest = new Request(request, {
+      signal: mergeSignals(request.signal, controller.signal),
+    });
 
     try {
-      return await next(
-        new Request(request, {
-          signal: mergeSignals(request.signal, controller.signal),
+      return await Promise.race([
+        next(timedRequest),
+        new Promise<Err<TimeoutError>>((resolve) => {
+          timedRequest.signal.addEventListener(
+            "abort",
+            () => {
+              resolve({
+                ok: false,
+                error: new TimeoutError(timeoutMs),
+              });
+            },
+            { once: true },
+          );
         }),
-      );
+      ]);
     } finally {
       clearTimeout(timeout);
     }
   });
 
-export const withRetry = (options: RetryOptions): Interceptor<never, Result> =>
+export interface RetryOptions {
+  retries: number;
+  methods?: readonly string[];
+  shouldRetry?: (
+    result: Result,
+    attempt: number,
+    request: Request,
+  ) => boolean | Promise<boolean>;
+}
+
+export const withRetry = (options: RetryOptions) =>
   defineInterceptor(async ({ request, next }) => {
     for (let attempt = 0; attempt <= options.retries; attempt += 1) {
       const attemptRequest = new Request(request);
       const result = await next(attemptRequest);
+
       const shouldRetry = await shouldRetryResult(
         result,
         attempt,
@@ -83,9 +99,28 @@ export const withRetry = (options: RetryOptions): Interceptor<never, Result> =>
     return next(new Request(request));
   });
 
-export const withCache = (
-  options: CacheOptions = {},
-): Interceptor<never, Result> => {
+const shouldRetryResult = async (
+  result: Result,
+  attempt: number,
+  request: Request,
+  options: RetryOptions,
+): Promise<boolean> => {
+  if (attempt >= options.retries) {
+    return false;
+  }
+
+  if (!isRetryableMethod(request.method, options.methods)) {
+    return false;
+  }
+
+  if (options.shouldRetry) {
+    return options.shouldRetry(result, attempt, request);
+  }
+
+  return isErr(result) || (isOk(result) && result.value.status >= 500);
+};
+
+export const withCache = (options: CacheOptions = {}) => {
   const store = options.store ?? createMemoryCacheStore();
 
   return defineInterceptor(async ({ request, next }) => {
@@ -131,24 +166,7 @@ const defaultShouldCache = (result: Result): boolean =>
   isOk(result) && result.value.ok;
 
 const defaultCacheKey = (request: Request): string =>
-  `${request.method}:${request.url}`;
-
-const shouldRetryResult = async (
-  result: Result,
-  attempt: number,
-  request: Request,
-  options: RetryOptions,
-): Promise<boolean> => {
-  if (attempt >= options.retries) {
-    return false;
-  }
-
-  if (options.shouldRetry) {
-    return options.shouldRetry(result, attempt, request);
-  }
-
-  return isErr(result) || (isOk(result) && result.value.status >= 500);
-};
+  `${request.method}:${request.url}:${serializeHeaders(request.headers)}`;
 
 const mergeSignals = (
   left: AbortSignal | null,
@@ -178,4 +196,38 @@ const mergeSignals = (
   right.addEventListener("abort", abort, { once: true });
 
   return controller.signal;
+};
+
+const DEFAULT_RETRY_METHODS = new Set([
+  "DELETE",
+  "GET",
+  "HEAD",
+  "OPTIONS",
+  "PUT",
+  "TRACE",
+]);
+
+const isRetryableMethod = (
+  method: string,
+  methods?: readonly string[],
+): boolean => {
+  const normalizedMethod = method.toUpperCase();
+
+  if (!methods) {
+    return DEFAULT_RETRY_METHODS.has(normalizedMethod);
+  }
+
+  return methods.some(
+    (candidate) => candidate.toUpperCase() === normalizedMethod,
+  );
+};
+
+const serializeHeaders = (headers: Headers): string => {
+  const serialized: string[] = [];
+
+  headers.forEach((value, key) => {
+    serialized.push(`${key}:${value}`);
+  });
+
+  return serialized.sort((left, right) => left.localeCompare(right)).join("|");
 };

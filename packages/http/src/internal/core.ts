@@ -59,6 +59,16 @@ export class FetchError extends Error {
   }
 }
 
+export class TimeoutError extends FetchError {
+  name = "TimeoutError";
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number, cause?: unknown) {
+    super(`Fetch request timed out after ${timeoutMs}ms.`, cause);
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export const createFetchHandler = (context: Context): Handler => {
   return async (request) => {
     try {

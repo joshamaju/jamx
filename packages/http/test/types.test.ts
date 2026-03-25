@@ -17,6 +17,8 @@ import {
   type ParseError,
   type Result,
   type StatusError,
+  type TimeoutError,
+  withTimeout,
 } from "../src/index.js";
 
 type SuccessOf<T> = T extends { ok: true; value: infer TValue }
@@ -83,7 +85,19 @@ describe("type inference", () => {
     expectTypeOf<ParseError>().toMatchTypeOf<FailureOf<WrappedHandlerResult>>();
   });
 
-  it("accumulates status and decode helper errors", () => {
+  it("adds status helper errors", () => {
+    const statusChecked = expectStatus(
+      ok(new Response(null, { status: 200 })),
+      200,
+    );
+
+    expectTypeOf<SuccessOf<typeof statusChecked>>().toEqualTypeOf<Response>();
+    expectTypeOf<StatusError>().toMatchTypeOf<
+      FailureOf<typeof statusChecked>
+    >();
+  });
+
+  it("adds decode helper errors", () => {
     const statusChecked = expectStatus(
       ok(new Response(null, { status: 200 })),
       200,
@@ -103,10 +117,6 @@ describe("type inference", () => {
       return err<DecodeError>({ message: "invalid-user", cause: input });
     });
 
-    expectTypeOf<SuccessOf<typeof statusChecked>>().toEqualTypeOf<Response>();
-    expectTypeOf<StatusError>().toMatchTypeOf<
-      FailureOf<typeof statusChecked>
-    >();
     expectTypeOf<SuccessOf<Awaited<typeof decoded>>>().toEqualTypeOf<User>();
     expectTypeOf<ParseError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
@@ -141,5 +151,16 @@ describe("type inference", () => {
     expectTypeOf<
       Awaited<ReturnType<typeof customInterceptorHandler>>
     >().toMatchTypeOf<Result>();
+  });
+
+  it("preserves timeout-specific errors", () => {
+    const timeoutHandler = composeInterceptors(withTimeout(5))(baseHandler);
+
+    expectTypeOf<TimeoutError>().toMatchTypeOf<
+      FailureOf<Awaited<ReturnType<typeof timeoutHandler>>>
+    >();
+    expectTypeOf<FetchError>().toMatchTypeOf<
+      FailureOf<Awaited<ReturnType<typeof timeoutHandler>>>
+    >();
   });
 });
