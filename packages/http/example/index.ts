@@ -9,6 +9,7 @@ import {
   expectStatus,
   match,
   ok,
+  text,
   withAuth,
   withCache,
   withHeaders,
@@ -54,14 +55,18 @@ const annotateResponse = defineCoreInterceptor(async ({ next }) => {
     return result;
   }
 
-  const payloadResult = await result.value.text();
+  const payloadResult = await text(result.value);
+
+  if (!payloadResult.ok) {
+    return payloadResult;
+  }
 
   const response = result.value;
 
   return ok(
     new Response(
       JSON.stringify({
-        ...(JSON.parse(payloadResult) as Record<string, unknown>),
+        ...(JSON.parse(payloadResult.value) as Record<string, unknown>),
         intercepted: true,
       }),
       {

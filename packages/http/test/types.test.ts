@@ -129,6 +129,39 @@ describe("type inference", () => {
     >();
   });
 
+  it("accepts plain responses in decoder helpers", () => {
+    const parsedText = text(new Response("Ada", { status: 200 }));
+    const decoded = decodeJson(
+      new Response(JSON.stringify({ id: 1, name: "Ada" }), { status: 200 }),
+      (input) => {
+        if (
+          typeof input === "object" &&
+          input !== null &&
+          "id" in input &&
+          "name" in input &&
+          typeof input.id === "number" &&
+          typeof input.name === "string"
+        ) {
+          return ok({ id: input.id, name: input.name });
+        }
+
+        return err<DecodeError>({ message: "invalid-user", cause: input });
+      },
+    );
+
+    expectTypeOf<SuccessOf<Awaited<typeof parsedText>>>().toEqualTypeOf<string>();
+    expectTypeOf<ParseError>().toMatchTypeOf<
+      FailureOf<Awaited<typeof parsedText>>
+    >();
+    expectTypeOf<SuccessOf<Awaited<typeof decoded>>>().toEqualTypeOf<User>();
+    expectTypeOf<ParseError>().toMatchTypeOf<
+      FailureOf<Awaited<typeof decoded>>
+    >();
+    expectTypeOf<DecodeError>().toMatchTypeOf<
+      FailureOf<Awaited<typeof decoded>>
+    >();
+  });
+
   it("keeps composed handlers executable", () => {
     const customInterceptorHandler = composeInterceptors(
       async ({ next }: Chain) => {
