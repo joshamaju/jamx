@@ -1,0 +1,60 @@
+{
+  "name": "@jamx/http",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "private": false,
+  "sideEffects": false,
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js",
+      "default": "./build/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "prepublish": "pnpm build",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "version": "changeset version",
+    "release": "changeset publish",
+    "dev": "tsx ./example/index.ts"
+  },
+  "keywords": [
+    "logger",
+    "log",
+    "console"
+  ],
+  "files": [
+    "build",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Joshua Amaju <joshsemail4work@gmail.com>",
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joshamaju/jamx",
+    "directory": "packages/http"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.30.0",
+    "@types/node": "^25.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.18"
+  }
+}
