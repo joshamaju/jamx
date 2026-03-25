@@ -8,8 +8,8 @@ results.
 ```ts
 import {
   composeInterceptors,
-  createFetchHandler,
   createMemoryCacheStore,
+  defaultFetch,
   withAuth,
   withCache,
   withHeaders,
@@ -25,9 +25,7 @@ const handler = composeInterceptors(
   withAuth("demo-token"),
   withCache({ store: cache }),
   withRetry({ retries: 1 }),
-)(
-  createFetchHandler({ fetch: globalThis.fetch }),
-);
+)(defaultFetch);
 ```
 
 ## Notes

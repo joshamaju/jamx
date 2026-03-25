@@ -3,9 +3,11 @@ import { assert, describe, it } from "vitest";
 import {
   chain,
   createFetchHandler,
+  defaultContext,
+  defaultFetch,
   err,
   expectStatus,
-  expectSuccessStatus,
+  expectOKStatus,
   isErr,
   isOk,
   mapErr,
@@ -16,18 +18,34 @@ import {
 } from "../src/index.js";
 
 describe("createFetchHandler", () => {
+  it("exports a default context backed by global fetch", () => {
+    assert.equal(defaultContext.fetch, globalThis.fetch);
+  });
+
+  it("exports a default fetch handler backed by the default context", async () => {
+    const result = await defaultFetch(
+      new Request("data:application/json,%7B%22ok%22%3Atrue%7D"),
+    );
+
+    assert.equal(isOk(result), true);
+
+    if (!isOk(result)) {
+      throw new Error("Expected default fetch handler to return an ok result.");
+    }
+
+    assert.equal(result.value.status, 200);
+  });
+
   it("wraps successful fetch responses", async () => {
-    const handler = createFetchHandler({
+    const fetch = createFetchHandler({
       fetch: async (input) => {
         const request = input instanceof Request ? input : new Request(input);
-
         assert.equal(request.url, "https://example.com/users");
-
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       },
     });
 
-    const result = await handler(new Request("https://example.com/users"));
+    const result = await fetch(new Request("https://example.com/users"));
 
     assert.equal(isOk(result), true);
 
@@ -89,6 +107,6 @@ describe("status helpers", () => {
   it("supports status class validators", () => {
     const uncommon = ok(new Response(null, { status: 299 }));
 
-    assert.equal(isOk(expectSuccessStatus(uncommon)), true);
+    assert.equal(isOk(expectOKStatus(uncommon)), true);
   });
 });

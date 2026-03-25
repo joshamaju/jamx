@@ -85,7 +85,7 @@ export const expectInformationalStatus = <TError>(
     "an informational status (1xx)",
   );
 
-export const expectSuccessStatus = <TError>(
+export const expectOKStatus = <TError>(
   result: Either<TError, Response>,
 ): Either<TError | StatusError, Response> =>
   expectStatusRange(result, isOkStatus, "a successful status (2xx)");

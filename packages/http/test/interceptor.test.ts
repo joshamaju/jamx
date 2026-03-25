@@ -1,9 +1,10 @@
-import { assert, describe, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import {
   composeInterceptors,
   createFetchHandler,
   createMemoryCacheStore,
+  defineInterceptor,
   isErr,
   isOk,
   TimeoutError,
@@ -16,7 +17,9 @@ import {
 
 describe("request middleware", () => {
   it("adds request headers", async () => {
-    const handler = composeInterceptors(withHeaders({ accept: "application/json" }))(
+    const handler = composeInterceptors(
+      withHeaders({ accept: "application/json" }),
+    )(
       createFetchHandler({
         fetch: async (input) => {
           const request = input instanceof Request ? input : new Request(input);
@@ -29,6 +32,7 @@ describe("request middleware", () => {
     );
 
     const result = await handler("https://example.com");
+
     assert.equal(isOk(result), true);
   });
 
@@ -38,7 +42,10 @@ describe("request middleware", () => {
         fetch: async (input) => {
           const request = input instanceof Request ? input : new Request(input);
 
-          assert.equal(request.headers.get("authorization"), "Bearer demo-token");
+          assert.equal(
+            request.headers.get("authorization"),
+            "Bearer demo-token",
+          );
 
           return new Response(null, { status: 200 });
         },
@@ -53,13 +60,22 @@ describe("request middleware", () => {
 describe("retry middleware", () => {
   it("retries failed idempotent requests", async () => {
     let calls = 0;
+    let spyCalls = 0;
 
-    const handler = composeInterceptors(withRetry({ retries: 1 }))(
+    const spy = defineInterceptor(({ next }) => {
+      spyCalls += 1;
+      return next();
+    });
+
+    const handler = composeInterceptors(
+      withRetry({ retries: 3 }),
+      spy,
+    )(
       createFetchHandler({
         fetch: async () => {
           calls += 1;
 
-          if (calls === 1) {
+          if (calls < 3) {
             return new Response("retry", { status: 503 });
           }
 
@@ -71,7 +87,8 @@ describe("retry middleware", () => {
     const result = await handler("https://example.com/users");
 
     assert.equal(isOk(result) && result.value.status === 200, true);
-    assert.equal(calls, 2);
+    assert.equal(spyCalls, 3);
+    assert.equal(calls, 3);
   });
 
   it("does not replay non-idempotent requests by default", async () => {

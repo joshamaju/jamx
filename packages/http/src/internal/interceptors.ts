@@ -2,17 +2,6 @@ import { defineInterceptor, Result, TimeoutError } from "./core.js";
 import { isErr, isOk, ok } from "./either.js";
 import type { Err } from "./either.js";
 
-export interface CacheStore {
-  get(key: string): Response | undefined | Promise<Response | undefined>;
-  set(key: string, response: Response): void | Promise<void>;
-}
-
-export interface CacheOptions {
-  store?: CacheStore;
-  key?: (request: Request) => string;
-  shouldCache?: (result: Result, request: Request) => boolean;
-}
-
 export const withHeaders = (
   headers: HeadersInit | ((request: Request) => HeadersInit),
 ) =>
@@ -43,6 +32,7 @@ export const withTimeout = (timeoutMs: number) =>
   defineInterceptor(async ({ request, next }) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
     const timedRequest = new Request(request, {
       signal: mergeSignals(request.signal, controller.signal),
     });
@@ -67,6 +57,34 @@ export const withTimeout = (timeoutMs: number) =>
       clearTimeout(timeout);
     }
   });
+
+const mergeSignals = (
+  left: AbortSignal | null,
+  right: AbortSignal,
+): AbortSignal => {
+  if (!left) {
+    return right;
+  }
+
+  const anySignal = AbortSignal;
+
+  if (typeof anySignal.any === "function") {
+    return anySignal.any([left, right]);
+  }
+
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+
+  if (left.aborted || right.aborted) {
+    controller.abort();
+    return controller.signal;
+  }
+
+  left.addEventListener("abort", abort, { once: true });
+  right.addEventListener("abort", abort, { once: true });
+
+  return controller.signal;
+};
 
 export interface RetryOptions {
   retries: number;
@@ -120,6 +138,17 @@ const shouldRetryResult = async (
   return isErr(result) || (isOk(result) && result.value.status >= 500);
 };
 
+export interface CacheStore {
+  get(key: string): Response | undefined | Promise<Response | undefined>;
+  set(key: string, response: Response): void | Promise<void>;
+}
+
+export interface CacheOptions {
+  store?: CacheStore;
+  key?: (request: Request) => string;
+  shouldCache?: (result: Result, request: Request) => boolean;
+}
+
 export const withCache = (options: CacheOptions = {}) => {
   const store = options.store ?? createMemoryCacheStore();
 
@@ -167,36 +196,6 @@ const defaultShouldCache = (result: Result): boolean =>
 
 const defaultCacheKey = (request: Request): string =>
   `${request.method}:${request.url}:${serializeHeaders(request.headers)}`;
-
-const mergeSignals = (
-  left: AbortSignal | null,
-  right: AbortSignal,
-): AbortSignal => {
-  if (!left) {
-    return right;
-  }
-
-  const anySignal = AbortSignal as typeof AbortSignal & {
-    any?: (signals: AbortSignal[]) => AbortSignal;
-  };
-
-  if (typeof anySignal.any === "function") {
-    return anySignal.any([left, right]);
-  }
-
-  const controller = new AbortController();
-  const abort = () => controller.abort();
-
-  if (left.aborted || right.aborted) {
-    controller.abort();
-    return controller.signal;
-  }
-
-  left.addEventListener("abort", abort, { once: true });
-  right.addEventListener("abort", abort, { once: true });
-
-  return controller.signal;
-};
 
 const DEFAULT_RETRY_METHODS = new Set([
   "DELETE",

@@ -5,6 +5,10 @@ export interface Context {
   fetch: typeof globalThis.fetch;
 }
 
+export const defaultContext: Context = {
+  fetch: globalThis.fetch,
+};
+
 export interface Input {
   input: RequestInfo | URL;
   init?: RequestInit;
@@ -79,6 +83,8 @@ export const createFetchHandler = (context: Context): Handler => {
     }
   };
 };
+
+export const defaultFetch = createFetchHandler(defaultContext);
 
 export const composeInterceptors =
   <const TInterceptors extends readonly AnyInterceptor[]>(
