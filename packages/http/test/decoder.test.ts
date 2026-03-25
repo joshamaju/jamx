@@ -1,6 +1,18 @@
 import { assert, describe, it } from "vitest";
+import { z } from "zod";
 
-import { decodeJson, empty, err, isOk, json, ok, text } from "../src/index.js";
+import {
+  decodeJson,
+  empty,
+  err,
+  isErr,
+  isOk,
+  json,
+  ok,
+  SchemaError,
+  text,
+  validate,
+} from "../src/index.js";
 
 describe("body helpers", () => {
   it("parses text from a plain response", async () => {
@@ -110,5 +122,79 @@ describe("body helpers", () => {
     const emptyResponse = await empty(ok(new Response(null, { status: 204 })));
 
     assert.deepEqual(emptyResponse, ok(undefined));
+  });
+});
+
+describe("validator helpers", () => {
+  it("validates values parsed with the text helper", async () => {
+    const textSchema = z.string().min(3);
+    const parsed = await text(new Response("Ada", { status: 200 }));
+
+    const result = await validate(parsed, textSchema);
+
+    assert.deepEqual(result, ok("Ada"));
+  });
+
+  it("validates values parsed with the json helper", async () => {
+    const userSchema = z.object({
+      id: z.number(),
+      name: z.string(),
+    });
+    const parsed = await json(
+      new Response(JSON.stringify({ id: 1, name: "Ada" }), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      }),
+    );
+
+    const result = await validate(parsed, userSchema);
+
+    assert.deepEqual(result, ok({ id: 1, name: "Ada" }));
+  });
+
+  it("validates decoded values against a standard schema", async () => {
+    const userSchema = z.object({
+      id: z.number(),
+      name: z.string(),
+    });
+
+    const result = await validate(ok({ id: 1, name: "Ada" }), userSchema);
+
+    assert.deepEqual(result, ok({ id: 1, name: "Ada" }));
+  });
+
+  it("returns schema issues when schema validation fails", async () => {
+    const userSchema = z.object({
+      id: z.number(),
+      name: z.string(),
+    });
+
+    // @ts-expect-error
+    const result = await validate(ok({ id: "bad" }), userSchema);
+
+    assert.equal(isErr(result), true);
+
+    if (!isErr(result)) {
+      throw new Error("Expected schema validation to fail.");
+    }
+
+    if (!(result.error instanceof SchemaError)) {
+      throw new Error("Expected a schema error.");
+    }
+
+    assert.equal(result.error.vendor, "zod");
+    assert.equal(result.error.message.includes("Invalid input"), true);
+    assert.equal(result.error.issues.length > 0, true);
+  });
+
+  it("preserves decoder errors before schema validation", async () => {
+    const userSchema = z.object({
+      id: z.number(),
+      name: z.string(),
+    });
+
+    const result = await validate(err({ message: "bad-payload" }), userSchema);
+
+    assert.deepEqual(result, err({ message: "bad-payload" }));
   });
 });

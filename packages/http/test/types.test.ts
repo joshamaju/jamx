@@ -1,4 +1,5 @@
 import { describe, expectTypeOf, it } from "vitest";
+import { z } from "zod";
 
 import {
   chain,
@@ -10,12 +11,14 @@ import {
   expectStatus,
   ok,
   text,
+  validate,
   type Chain,
   type DecodeError,
   type ExecutableHandler,
   type FetchError,
   type ParseError,
   type Result,
+  type SchemaError,
   type StatusError,
   type TimeoutError,
   withTimeout,
@@ -159,6 +162,33 @@ describe("type inference", () => {
     >();
     expectTypeOf<DecodeError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
+    >();
+  });
+
+  it("infers validator output from standard schemas", () => {
+    const userSchema = z
+      .object({
+        id: z.number(),
+        name: z.string(),
+      })
+      .transform((value) => ({
+        ...value,
+        active: true,
+      }));
+
+    const validated = validate(
+      ok({
+        id: 1,
+        name: "Ada",
+      }),
+      userSchema,
+    );
+
+    expectTypeOf<SuccessOf<Awaited<typeof validated>>>().toEqualTypeOf<
+      User & { active: boolean }
+    >();
+    expectTypeOf<SchemaError>().toMatchTypeOf<
+      FailureOf<Awaited<typeof validated>>
     >();
   });
 

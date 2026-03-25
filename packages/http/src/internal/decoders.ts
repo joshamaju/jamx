@@ -1,3 +1,4 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { chain, type Either, err, isErr, ok } from "./either.js";
 
 export interface DecodeError {
@@ -15,6 +16,46 @@ export const defineDecoder = <
 >(
   decoder: Decoder<TValue, TDecodeError>,
 ): Decoder<TValue, TDecodeError> => decoder;
+
+export class SchemaError extends Error {
+  name = "SchemaError";
+  readonly vendor: string;
+  readonly issues: ReadonlyArray<StandardSchemaV1.Issue>;
+
+  constructor(
+    vendor: string,
+    issues: ReadonlyArray<StandardSchemaV1.Issue>,
+    cause?: unknown,
+  ) {
+    super(formatSchemaIssues(issues), { cause });
+    this.vendor = vendor;
+    this.issues = issues;
+  }
+}
+
+export const validate = <
+  TError,
+  TDecodedValue,
+  TSchema extends StandardSchemaV1<TDecodedValue, any>,
+>(
+  result: Either<TError, TDecodedValue>,
+  schema: TSchema,
+): Promise<Either<TError | SchemaError, StandardSchemaV1.InferOutput<TSchema>>> =>
+  (async () => {
+  if (isErr(result)) {
+    return result;
+  }
+
+  const validated = await schema["~standard"].validate(result.value);
+
+  if (validated.issues) {
+    return err(
+      new SchemaError(schema["~standard"].vendor, validated.issues, validated),
+    );
+  }
+
+  return ok(validated.value);
+})();
 
 export class ParseError extends Error {
   name = "ParseError";
@@ -125,4 +166,12 @@ function toResponseEither<TError>(
   input: ResponseInput<TError>,
 ): Either<TError, Response> {
   return input instanceof Response ? ok(input) : input;
+}
+
+function formatSchemaIssues(issues: ReadonlyArray<StandardSchemaV1.Issue>): string {
+  if (issues.length === 0) {
+    return "Schema validation failed.";
+  }
+
+  return issues.map((issue) => issue.message).join("; ");
 }

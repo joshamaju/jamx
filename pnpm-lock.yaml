@@ -11,8 +11,18 @@ importers:
       '@changesets/cli':
         specifier: ^2.30.0
         version: 2.30.0(@types/node@25.3.3)
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
 
   packages/http:
+    dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
     devDependencies:
       '@changesets/cli':
         specifier: ^2.30.0
@@ -939,6 +949,9 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+
 snapshots:
 
   '@babel/runtime@7.28.6': {}
@@ -1756,3 +1769,5 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  zod@4.3.6: {}
