@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "build",
+    "target": "ES2020",
+    "declaration": true,
+    "incremental": true,
+    "module": "nodenext",
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "noUnusedLocals": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM"],
+    "noUnusedParameters": true,
+    "moduleResolution": "NodeNext",
+    "forceConsistentCasingInFileNames": true,
+  },
+  "include": ["src"],
+  "exclude": ["test"]
+}
