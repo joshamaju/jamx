@@ -44,7 +44,7 @@ const plainAnnotate = async ({ next }: Chain) => {
     return result;
   }
 
-  const payloadResult = await text(result);
+  const payloadResult = await text(result.value);
 
   if (!payloadResult.ok) {
     return payloadResult;
@@ -60,7 +60,7 @@ const wrappedAnnotate = defineCoreInterceptor(async ({ next }) => {
     return result;
   }
 
-  const payloadResult = await text(result);
+  const payloadResult = await text(result.value);
 
   if (!payloadResult.ok) {
     return payloadResult;
@@ -95,6 +95,7 @@ describe("type inference", () => {
     );
 
     expectTypeOf<SuccessOf<typeof statusChecked>>().toEqualTypeOf<Response>();
+
     expectTypeOf<StatusError>().toMatchTypeOf<
       FailureOf<typeof statusChecked>
     >();
@@ -121,12 +122,15 @@ describe("type inference", () => {
     });
 
     expectTypeOf<SuccessOf<Awaited<typeof decoded>>>().toEqualTypeOf<User>();
+
     expectTypeOf<ParseError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
     >();
+
     expectTypeOf<StatusError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
     >();
+
     expectTypeOf<DecodeError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
     >();
@@ -134,6 +138,7 @@ describe("type inference", () => {
 
   it("accepts plain responses in decoder helpers", () => {
     const parsedText = text(new Response("Ada", { status: 200 }));
+
     const decoded = decodeJson(
       new Response(JSON.stringify({ id: 1, name: "Ada" }), { status: 200 }),
       (input) => {
@@ -152,14 +157,20 @@ describe("type inference", () => {
       },
     );
 
-    expectTypeOf<SuccessOf<Awaited<typeof parsedText>>>().toEqualTypeOf<string>();
+    expectTypeOf<
+      SuccessOf<Awaited<typeof parsedText>>
+    >().toEqualTypeOf<string>();
+
     expectTypeOf<ParseError>().toMatchTypeOf<
       FailureOf<Awaited<typeof parsedText>>
     >();
+
     expectTypeOf<SuccessOf<Awaited<typeof decoded>>>().toEqualTypeOf<User>();
+
     expectTypeOf<ParseError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
     >();
+
     expectTypeOf<DecodeError>().toMatchTypeOf<
       FailureOf<Awaited<typeof decoded>>
     >();
@@ -167,26 +178,15 @@ describe("type inference", () => {
 
   it("infers validator output from standard schemas", () => {
     const userSchema = z
-      .object({
-        id: z.number(),
-        name: z.string(),
-      })
-      .transform((value) => ({
-        ...value,
-        active: true,
-      }));
+      .object({ id: z.number(), name: z.string() })
+      .transform((value) => ({ ...value, active: true }));
 
-    const validated = validate(
-      ok({
-        id: 1,
-        name: "Ada",
-      }),
-      userSchema,
-    );
+    const validated = validate(ok({ id: 1, name: "Ada" }), userSchema);
 
     expectTypeOf<SuccessOf<Awaited<typeof validated>>>().toEqualTypeOf<
       User & { active: boolean }
-    >();
+    >({} as any);
+
     expectTypeOf<SchemaError>().toMatchTypeOf<
       FailureOf<Awaited<typeof validated>>
     >();
@@ -211,6 +211,7 @@ describe("type inference", () => {
     expectTypeOf(customInterceptorHandler).toMatchTypeOf<
       ExecutableHandler<Awaited<ReturnType<typeof customInterceptorHandler>>>
     >();
+
     expectTypeOf<
       Awaited<ReturnType<typeof customInterceptorHandler>>
     >().toMatchTypeOf<Result>();
@@ -222,6 +223,7 @@ describe("type inference", () => {
     expectTypeOf<TimeoutError>().toMatchTypeOf<
       FailureOf<Awaited<ReturnType<typeof timeoutHandler>>>
     >();
+
     expectTypeOf<FetchError>().toMatchTypeOf<
       FailureOf<Awaited<ReturnType<typeof timeoutHandler>>>
     >();

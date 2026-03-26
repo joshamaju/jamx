@@ -136,10 +136,8 @@ describe("validator helpers", () => {
   });
 
   it("validates values parsed with the json helper", async () => {
-    const userSchema = z.object({
-      id: z.number(),
-      name: z.string(),
-    });
+    const userSchema = z.object({ id: z.number(), name: z.string() });
+
     const parsed = await json(
       new Response(JSON.stringify({ id: 1, name: "Ada" }), {
         headers: { "content-type": "application/json" },
@@ -153,10 +151,7 @@ describe("validator helpers", () => {
   });
 
   it("validates decoded values against a standard schema", async () => {
-    const userSchema = z.object({
-      id: z.number(),
-      name: z.string(),
-    });
+    const userSchema = z.object({ id: z.number(), name: z.string() });
 
     const result = await validate(ok({ id: 1, name: "Ada" }), userSchema);
 
@@ -164,10 +159,7 @@ describe("validator helpers", () => {
   });
 
   it("returns schema issues when schema validation fails", async () => {
-    const userSchema = z.object({
-      id: z.number(),
-      name: z.string(),
-    });
+    const userSchema = z.object({ id: z.number(), name: z.string() });
 
     // @ts-expect-error
     const result = await validate(ok({ id: "bad" }), userSchema);
@@ -188,10 +180,7 @@ describe("validator helpers", () => {
   });
 
   it("preserves decoder errors before schema validation", async () => {
-    const userSchema = z.object({
-      id: z.number(),
-      name: z.string(),
-    });
+    const userSchema = z.object({ id: z.number(), name: z.string() });
 
     const result = await validate(err({ message: "bad-payload" }), userSchema);
 
