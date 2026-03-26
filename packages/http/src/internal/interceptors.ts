@@ -2,6 +2,19 @@ import { defineInterceptor, Result, TimeoutError } from "./core.js";
 import { isErr, isOk, ok } from "./either.js";
 import type { Left } from "./either.js";
 
+/**
+ * Rebases a request URL onto a configured base URL while preserving the
+ * original path, query string, and hash.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, defaultFetch, withBaseUrl } from "@jamx/http";
+ *
+ * const fetcher = composeInterceptors(
+ *   withBaseUrl("https://api.example.com/v1"),
+ * )(defaultFetch);
+ * ```
+ */
 export const withBaseUrl = (baseUrl: string | URL) =>
   defineInterceptor(async ({ request, next }) => {
     const currentUrl = new URL(request.url);
@@ -12,13 +25,21 @@ export const withBaseUrl = (baseUrl: string | URL) =>
       )}`,
     );
 
-    // let url_ = url
-    //   ? baseUrl.toString().replace(/\/+$/, "") + "/" + request.url.replace(/^\/+/, "")
-    //   : baseUrl;
-
     return next(new Request(url, request));
   });
 
+/**
+ * Merges additional headers into the outgoing request.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, defaultFetch, withHeaders } from "@jamx/http";
+ *
+ * const fetcher = composeInterceptors(
+ *   withHeaders({ accept: "application/json" }),
+ * )(defaultFetch);
+ * ```
+ */
 export const withHeaders = (
   headers: HeadersInit | ((request: Request) => HeadersInit),
 ) =>
@@ -34,6 +55,16 @@ export const withHeaders = (
     return next(new Request(request, { headers: nextHeaders }));
   });
 
+/**
+ * Adds an `Authorization` header using the given token and scheme.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, defaultFetch, withAuth } from "@jamx/http";
+ *
+ * const fetcher = composeInterceptors(withAuth("demo-token"))(defaultFetch);
+ * ```
+ */
 export const withAuth = (
   token: string | ((request: Request) => string),
   scheme = "Bearer",
@@ -45,6 +76,16 @@ export const withAuth = (
     return next(new Request(request, { headers }));
   });
 
+/**
+ * Aborts requests that take longer than the given timeout.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, defaultFetch, withTimeout } from "@jamx/http";
+ *
+ * const fetcher = composeInterceptors(withTimeout(500))(defaultFetch);
+ * ```
+ */
 export const withTimeout = (timeoutMs: number) =>
   defineInterceptor(async ({ request, next }) => {
     const controller = new AbortController();
@@ -113,6 +154,17 @@ export interface RetryOptions {
   ) => boolean | Promise<boolean>;
 }
 
+/**
+ * Retries idempotent requests when they fail with transport errors or `5xx`
+ * responses.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, defaultFetch, withRetry } from "@jamx/http";
+ *
+ * const fetcher = composeInterceptors(withRetry({ retries: 2 }))(defaultFetch);
+ * ```
+ */
 export const withRetry = (options: RetryOptions) =>
   defineInterceptor(async ({ request, next }) => {
     for (let attempt = 0; attempt <= options.retries; attempt += 1) {
@@ -166,6 +218,17 @@ export interface CacheOptions {
   shouldCache?: (result: Result, request: Request) => boolean;
 }
 
+/**
+ * Caches successful `GET` responses in a store.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, createMemoryCacheStore, defaultFetch, withCache } from "@jamx/http";
+ *
+ * const store = createMemoryCacheStore();
+ * const fetcher = composeInterceptors(withCache({ store }))(defaultFetch);
+ * ```
+ */
 export const withCache = (options: CacheOptions = {}) => {
   const store = options.store ?? createMemoryCacheStore();
 
@@ -194,6 +257,16 @@ export const withCache = (options: CacheOptions = {}) => {
   });
 };
 
+/**
+ * Creates an in-memory cache store compatible with `withCache`.
+ *
+ * @example
+ * ```ts
+ * import { createMemoryCacheStore } from "@jamx/http";
+ *
+ * const store = createMemoryCacheStore();
+ * ```
+ */
 export const createMemoryCacheStore = (): CacheStore => {
   const store = new Map<string, Response>();
 

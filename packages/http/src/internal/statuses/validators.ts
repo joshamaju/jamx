@@ -20,6 +20,17 @@ export class StatusError extends Error {
   }
 }
 
+/**
+ * Asserts that a response matches an expected status code or one of several
+ * exact status codes.
+ *
+ * @example
+ * ```ts
+ * import { expectStatus, ok } from "@jamx/http";
+ *
+ * const result = expectStatus(ok(new Response(null, { status: 200 })), 200);
+ * ```
+ */
 export const expectStatus = <TError>(
   result: Either<TError, Response>,
   expected: number | readonly number[],
@@ -41,6 +52,20 @@ export const expectStatus = <TError>(
       );
 };
 
+/**
+ * Asserts that a response status satisfies a custom predicate.
+ *
+ * @example
+ * ```ts
+ * import { expectStatusRange, ok } from "@jamx/http";
+ *
+ * const result = expectStatusRange(
+ *   ok(new Response(null, { status: 204 })),
+ *   (status) => status >= 200 && status < 300,
+ *   "a successful status (2xx)",
+ * );
+ * ```
+ */
 export const expectStatusRange = <TError>(
   result: Either<TError, Response>,
   predicate: (status: number) => boolean,
@@ -85,6 +110,16 @@ export const expectInformationalStatus = <TError>(
     "an informational status (1xx)",
   );
 
+/**
+ * Asserts that a response has a successful `2xx` status.
+ *
+ * @example
+ * ```ts
+ * import { expectOKStatus, ok } from "@jamx/http";
+ *
+ * const result = expectOKStatus(ok(new Response(null, { status: 204 })));
+ * ```
+ */
 export const expectOKStatus = <TError>(
   result: Either<TError, Response>,
 ): Either<TError | StatusError, Response> =>

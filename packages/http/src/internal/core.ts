@@ -5,6 +5,16 @@ export interface Context {
   fetch: typeof globalThis.fetch;
 }
 
+/**
+ * Default HTTP context backed by the platform `fetch` implementation.
+ *
+ * @example
+ * ```ts
+ * import { createFetchHandler, defaultContext } from "@jamx/http";
+ *
+ * const fetcher = createFetchHandler(defaultContext);
+ * ```
+ */
 export const defaultContext: Context = {
   fetch: globalThis.fetch,
 };
@@ -40,6 +50,16 @@ type InterceptorResult<TInterceptor extends AnyInterceptor> = Awaited<
   ReturnType<TInterceptor>
 >;
 
+/**
+ * Type helper for the final `Either` result produced by a composed interceptor chain.
+ *
+ * @example
+ * ```ts
+ * import type { ComposeInterceptorsResult, Result } from "@jamx/http";
+ *
+ * type FinalResult = ComposeInterceptorsResult<[], Result>;
+ * ```
+ */
 export type ComposeInterceptorsResult<
   TInterceptors extends readonly AnyInterceptor[],
   TResult extends AnyEither = Result,
@@ -55,6 +75,9 @@ export interface ExecutableHandler<TResult extends AnyEither> {
   (input: RequestInfo | URL, init?: RequestInit): Promise<TResult>;
 }
 
+/**
+ * Base error returned when a request fails before a response is produced.
+ */
 export class FetchError extends Error {
   name = "FetchError";
 
@@ -73,6 +96,17 @@ export class TimeoutError extends FetchError {
   }
 }
 
+/**
+ * Creates a `fetch`-backed handler that returns `Either<FetchError, Response>`.
+ *
+ * @example
+ * ```ts
+ * import { createFetchHandler, defaultContext } from "@jamx/http";
+ *
+ * const fetcher = createFetchHandler(defaultContext);
+ * const result = await fetcher(new Request("https://example.com"));
+ * ```
+ */
 export const createFetchHandler = (context: Context): Handler => {
   return async (request) => {
     try {
@@ -84,8 +118,31 @@ export const createFetchHandler = (context: Context): Handler => {
   };
 };
 
+/**
+ * Ready-to-use HTTP handler backed by `globalThis.fetch`.
+ *
+ * @example
+ * ```ts
+ * import { defaultFetch } from "@jamx/http";
+ *
+ * const result = await defaultFetch("https://example.com/users");
+ * ```
+ */
 export const defaultFetch = createFetchHandler(defaultContext);
 
+/**
+ * Composes one or more interceptors into an executable HTTP handler.
+ *
+ * @example
+ * ```ts
+ * import { composeInterceptors, defaultFetch, withAuth, withTimeout } from "@jamx/http";
+ *
+ * const handler = composeInterceptors(
+ *   withTimeout(250),
+ *   withAuth("demo-token"),
+ * )(defaultFetch);
+ * ```
+ */
 export const composeInterceptors =
   <const TInterceptors extends readonly AnyInterceptor[]>(
     ...interceptors: TInterceptors
@@ -124,6 +181,19 @@ export const composeInterceptors =
     return execute as ExecutableHandler<ComposeInterceptorsResult<TInterceptors>>;
   };
 
+/**
+ * Defines an interceptor while preserving its inferred result type.
+ *
+ * @example
+ * ```ts
+ * import { defineInterceptor, ok } from "@jamx/http";
+ *
+ * const interceptor = defineInterceptor(async ({ next }) => {
+ *   const result = await next();
+ *   return result.ok ? ok(result.value) : result;
+ * });
+ * ```
+ */
 export const defineInterceptor = <
   TInterceptor extends (args: Chain) => Promise<AnyEither>,
 >(

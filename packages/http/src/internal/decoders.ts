@@ -10,6 +10,20 @@ export type Decoder<TValue, TError extends DecodeError = DecodeError> = (
   input: unknown,
 ) => Either<TError, TValue>;
 
+/**
+ * Defines a decoder while preserving inferred input, output, and error types.
+ *
+ * @example
+ * ```ts
+ * import { defineDecoder, err, ok } from "@jamx/http";
+ *
+ * const decodeUser = defineDecoder((input) => {
+ *   return typeof input === "object" && input !== null
+ *     ? ok(input)
+ *     : err({ message: "invalid-user", cause: input });
+ * });
+ * ```
+ */
 export const defineDecoder = <
   TValue,
   TDecodeError extends DecodeError = DecodeError,
@@ -17,6 +31,9 @@ export const defineDecoder = <
   decoder: Decoder<TValue, TDecodeError>,
 ): Decoder<TValue, TDecodeError> => decoder;
 
+/**
+ * Error returned when schema validation fails after decoding succeeds.
+ */
 export class SchemaError extends Error {
   name = "SchemaError";
   readonly vendor: string;
@@ -33,6 +50,19 @@ export class SchemaError extends Error {
   }
 }
 
+/**
+ * Validates a decoded `Either` value with a Standard Schema compatible validator.
+ *
+ * @example
+ * ```ts
+ * import { json, validate } from "@jamx/http";
+ * import { z } from "zod";
+ *
+ * const schema = z.object({ id: z.number(), name: z.string() });
+ * const parsed = await json(new Response('{"id":1,"name":"Ada"}'));
+ * const result = await validate(parsed, schema);
+ * ```
+ */
 export const validate = <
   TError,
   TDecodedValue,
@@ -63,6 +93,9 @@ export const validate = <
     return ok(validated.value);
   })();
 
+/**
+ * Error returned when a body helper cannot parse a response payload.
+ */
 export class ParseError extends Error {
   name = "ParseError";
   readonly response: Response;
@@ -81,6 +114,16 @@ export class ParseError extends Error {
 
 type ResponseInput<TError = never> = Response | Either<TError, Response>;
 
+/**
+ * Parses a response body as JSON.
+ *
+ * @example
+ * ```ts
+ * import { json } from "@jamx/http";
+ *
+ * const result = await json(new Response('{"ok":true}'));
+ * ```
+ */
 export function json(response: Response): Promise<Either<ParseError, unknown>>;
 export function json<TError>(
   result: Either<TError, Response>,
@@ -99,6 +142,16 @@ export async function json<TError>(
   }
 }
 
+/**
+ * Parses a response body as text.
+ *
+ * @example
+ * ```ts
+ * import { text } from "@jamx/http";
+ *
+ * const result = await text(new Response("hello"));
+ * ```
+ */
 export function text(response: Response): Promise<Either<ParseError, string>>;
 export function text<TError>(
   result: Either<TError, Response>,
@@ -117,6 +170,16 @@ export async function text<TError>(
   }
 }
 
+/**
+ * Validates that a response body is empty.
+ *
+ * @example
+ * ```ts
+ * import { empty } from "@jamx/http";
+ *
+ * const result = await empty(new Response(null, { status: 204 }));
+ * ```
+ */
 export function empty(response: Response): Promise<Either<ParseError, void>>;
 export function empty<TError>(
   result: Either<TError, Response>,
@@ -138,6 +201,20 @@ export async function empty<TError>(
   }
 }
 
+/**
+ * Parses a response body as JSON and then decodes the parsed payload.
+ *
+ * @example
+ * ```ts
+ * import { decodeJson, err, ok } from "@jamx/http";
+ *
+ * const result = await decodeJson(new Response('{"id":1}'), (input) =>
+ *   typeof input === "object" && input !== null
+ *     ? ok(input)
+ *     : err({ message: "invalid-json", cause: input }),
+ * );
+ * ```
+ */
 export function decodeJson<
   TValue,
   TDecodeError extends DecodeError = DecodeError,
