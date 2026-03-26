@@ -9,6 +9,7 @@ import {
   isOk,
   TimeoutError,
   withAuth,
+  withBaseUrl,
   withCache,
   withHeaders,
   withRetry,
@@ -16,6 +17,29 @@ import {
 } from "../src/index.js";
 
 describe("request middleware", () => {
+  it("rebases request urls onto a base url", async () => {
+    const handler = composeInterceptors(
+      withBaseUrl("https://api.example.com/v1"),
+    )(
+      createFetchHandler({
+        fetch: async (input) => {
+          const request = input instanceof Request ? input : new Request(input);
+
+          assert.equal(
+            request.url,
+            "https://api.example.com/v1/users?role=admin#team",
+          );
+
+          return new Response(null, { status: 200 });
+        },
+      }),
+    );
+
+    const result = await handler("https://placeholder.test/users?role=admin#team");
+
+    assert.equal(isOk(result), true);
+  });
+
   it("adds request headers", async () => {
     const handler = composeInterceptors(
       withHeaders({ accept: "application/json" }),

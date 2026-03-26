@@ -40,14 +40,14 @@ type InterceptorResult<TInterceptor extends AnyInterceptor> = Awaited<
   ReturnType<TInterceptor>
 >;
 
-type ComposeResult<
+export type ComposeInterceptorsResult<
   TInterceptors extends readonly AnyInterceptor[],
   TResult extends AnyEither = Result,
 > = TInterceptors extends readonly [
   infer THead extends AnyInterceptor,
   ...infer TTail extends readonly AnyInterceptor[],
 ]
-  ? InterceptorResult<THead> | ComposeResult<TTail, TResult>
+  ? InterceptorResult<THead> | ComposeInterceptorsResult<TTail, TResult>
   : TResult;
 
 export interface ExecutableHandler<TResult extends AnyEither> {
@@ -92,22 +92,22 @@ export const composeInterceptors =
   ) =>
   <THandler extends Handler>(
     handler: THandler,
-  ): ExecutableHandler<ComposeResult<TInterceptors>> => {
+  ): ExecutableHandler<ComposeInterceptorsResult<TInterceptors>> => {
     const execute = async (
       input: RequestInfo | URL,
       init?: RequestInit,
-    ): Promise<ComposeResult<TInterceptors>> => {
+    ): Promise<ComposeInterceptorsResult<TInterceptors>> => {
       const request = new Request(input, init);
 
       const dispatch = async (
         index: number,
         currentRequest: Request,
-      ): Promise<ComposeResult<TInterceptors>> => {
+      ): Promise<ComposeInterceptorsResult<TInterceptors>> => {
         const interceptor = interceptors[index];
 
         if (!interceptor) {
           return handler(currentRequest) as Promise<
-            ComposeResult<TInterceptors>
+            ComposeInterceptorsResult<TInterceptors>
           >;
         }
 
@@ -115,13 +115,13 @@ export const composeInterceptors =
           request: currentRequest,
           next: (nextRequest = currentRequest) =>
             dispatch(index + 1, nextRequest),
-        }) as Promise<ComposeResult<TInterceptors>>;
+        }) as Promise<ComposeInterceptorsResult<TInterceptors>>;
       };
 
       return dispatch(0, request);
     };
 
-    return execute as ExecutableHandler<ComposeResult<TInterceptors>>;
+    return execute as ExecutableHandler<ComposeInterceptorsResult<TInterceptors>>;
   };
 
 export const defineInterceptor = <

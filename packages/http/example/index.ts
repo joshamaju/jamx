@@ -6,6 +6,7 @@ import {
   defineInterceptor as defineCoreInterceptor,
   defineDecoder,
   err,
+  expectOKStatus,
   expectStatus,
   match,
   ok,
@@ -47,6 +48,11 @@ const requireJson = async ({ request, next }: Chain) => {
 
   return next();
 };
+
+const requireStatusOk = defineCoreInterceptor(async ({ next }) => {
+  const response = await next();
+  return expectOKStatus(response);
+});
 
 const annotateResponse = defineCoreInterceptor(async ({ next }) => {
   const result = await next();
@@ -113,6 +119,7 @@ const handler = composeInterceptors(
   withCache({ store: cache }),
   withRetry({ retries: 1 }),
   annotateResponse,
+  requireStatusOk,
 )(
   createFetchHandler({
     fetch: createMockFetch(),

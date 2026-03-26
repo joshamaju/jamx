@@ -2,6 +2,23 @@ import { defineInterceptor, Result, TimeoutError } from "./core.js";
 import { isErr, isOk, ok } from "./either.js";
 import type { Err } from "./either.js";
 
+export const withBaseUrl = (baseUrl: string | URL) =>
+  defineInterceptor(async ({ request, next }) => {
+    const currentUrl = new URL(request.url);
+
+    const url = new URL(
+      `${trimTrailingSlash(baseUrl.toString())}/${trimLeadingSlash(
+        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+      )}`,
+    );
+
+    // let url_ = url
+    //   ? baseUrl.toString().replace(/\/+$/, "") + "/" + request.url.replace(/^\/+/, "")
+    //   : baseUrl;
+
+    return next(new Request(url, request));
+  });
+
 export const withHeaders = (
   headers: HeadersInit | ((request: Request) => HeadersInit),
 ) =>
@@ -230,3 +247,7 @@ const serializeHeaders = (headers: Headers): string => {
 
   return serialized.sort((left, right) => left.localeCompare(right)).join("|");
 };
+
+const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, "");
+
+const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");

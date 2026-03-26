@@ -13,6 +13,7 @@ import {
   text,
   validate,
   type Chain,
+  type ComposeInterceptorsResult,
   type DecodeError,
   type ExecutableHandler,
   type FetchError,
@@ -81,6 +82,12 @@ type PlainHandlerResult = Awaited<ReturnType<typeof plainHandler>>;
 type WrappedHandlerResult = Awaited<ReturnType<typeof wrappedHandler>>;
 
 describe("type inference", () => {
+  it("exports the composed interceptor result type", () => {
+    expectTypeOf<ComposeInterceptorsResult<[typeof plainAnnotate]>>().toEqualTypeOf<
+      PlainHandlerResult
+    >();
+  });
+
   it("keeps plain and wrapped core interceptors equivalent", () => {
     expectTypeOf<PlainHandlerResult>().toEqualTypeOf<WrappedHandlerResult>();
     expectTypeOf<SuccessOf<WrappedHandlerResult>>().toEqualTypeOf<Response>();
