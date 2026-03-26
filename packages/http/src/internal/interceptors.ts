@@ -1,6 +1,6 @@
 import { defineInterceptor, Result, TimeoutError } from "./core.js";
 import { isErr, isOk, ok } from "./either.js";
-import type { Err } from "./either.js";
+import type { Left } from "./either.js";
 
 export const withBaseUrl = (baseUrl: string | URL) =>
   defineInterceptor(async ({ request, next }) => {
@@ -57,7 +57,7 @@ export const withTimeout = (timeoutMs: number) =>
     try {
       return await Promise.race([
         next(timedRequest),
-        new Promise<Err<TimeoutError>>((resolve) => {
+        new Promise<Left<TimeoutError>>((resolve) => {
           timedRequest.signal.addEventListener(
             "abort",
             () => {

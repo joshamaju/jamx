@@ -1,28 +1,28 @@
 import { AnyEither } from "./types.js";
 
-export type Ok<T> = { ok: true; value: T };
+export type Right<T> = { ok: true; value: T };
 
-export type Err<T> = { ok: false; error: T };
+export type Left<T> = { ok: false; error: T };
 
-export type Either<E, A> = Ok<A> | Err<E>;
+export type Either<E, A> = Right<A> | Left<E>;
 
-export const ok = <T>(value: T): Ok<T> => ({ ok: true, value });
+export const ok = <T>(value: T): Right<T> => ({ ok: true, value });
 
-export const err = <T>(error: T): Err<T> => ({ ok: false, error });
+export const err = <T>(error: T): Left<T> => ({ ok: false, error });
 
-export function isOk<T extends AnyEither>(_: T): _ is Extract<T, Ok<any>> {
+export function isOk<T extends AnyEither>(_: T): _ is Extract<T, Right<any>> {
   return _.ok;
 }
 
-export function isErr<T extends AnyEither>(_: T): _ is Extract<T, Err<any>> {
+export function isErr<T extends AnyEither>(_: T): _ is Extract<T, Left<any>> {
   return !_.ok;
 }
 
 type ErrorOf<TResult extends AnyEither> =
-  TResult extends Err<infer TError> ? TError : never;
+  TResult extends Left<infer TError> ? TError : never;
 
 type ValueOf<TResult extends AnyEither> =
-  TResult extends Ok<infer TValue> ? TValue : never;
+  TResult extends Right<infer TValue> ? TValue : never;
 
 export function mapOk<TResult extends AnyEither, TValue>(
   result: TResult,

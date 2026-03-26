@@ -128,6 +128,7 @@ const handler = composeInterceptors(
 
 async function runExample() {
   const firstResponse = await handler("https://api.example.com/users/42");
+
   const firstUser = await decodeJson(
     expectStatus(firstResponse, 200),
     decodeUser,
@@ -141,6 +142,7 @@ async function runExample() {
   );
 
   const cachedResponse = await handler("https://api.example.com/users/42");
+
   const cachedUser = await decodeJson(
     expectStatus(cachedResponse, 200),
     decodeUser,
@@ -168,16 +170,10 @@ function createMockFetch(): typeof globalThis.fetch {
     }
 
     if (request.method === "POST") {
-      return new Response(
-        JSON.stringify({
-          id: 99,
-          created: true,
-        }),
-        {
-          status: 201,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ id: 99, created: true }), {
+        headers: { "content-type": "application/json" },
+        status: 201,
+      });
     }
 
     const tenant = new URL(request.url).searchParams.get("tenant") ?? "unknown";
@@ -185,8 +181,8 @@ function createMockFetch(): typeof globalThis.fetch {
     return new Response(
       JSON.stringify({
         id: 42,
-        name: "Ada Lovelace",
         tenant,
+        name: "Ada Lovelace",
         authorization: request.headers.get("authorization"),
       }),
       {
