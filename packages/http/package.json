@@ -1,7 +1,7 @@
 {
   "name": "@jamx/http",
   "version": "0.1.0",
-  "description": "",
+  "description": "Composable fetch helpers with interceptors, decoders, validators, and Railway-style results.",
   "type": "module",
   "private": false,
   "sideEffects": false,
@@ -20,18 +20,22 @@
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --w",
     "test": "vitest run",
     "prepublish": "pnpm build",
     "prepack": "pnpm run build",
     "typecheck": "tsc --noEmit",
     "version": "changeset version",
     "release": "changeset publish",
-    "dev": "tsx ./example/index.ts"
+    "example": "tsx ./example/index.ts"
   },
   "keywords": [
-    "logger",
-    "log",
-    "console"
+    "fetch",
+    "http",
+    "interceptors",
+    "decoder",
+    "validation",
+    "typescript"
   ],
   "files": [
     "build",
@@ -49,6 +53,10 @@
     "type": "git",
     "url": "https://github.com/joshamaju/jamx",
     "directory": "packages/http"
+  },
+  "homepage": "https://github.com/joshamaju/jamx/tree/main/packages/http",
+  "bugs": {
+    "url": "https://github.com/joshamaju/jamx/issues"
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0"

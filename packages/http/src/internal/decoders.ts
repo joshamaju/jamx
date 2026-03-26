@@ -40,22 +40,28 @@ export const validate = <
 >(
   result: Either<TError, TDecodedValue>,
   schema: TSchema,
-): Promise<Either<TError | SchemaError, StandardSchemaV1.InferOutput<TSchema>>> =>
+): Promise<
+  Either<TError | SchemaError, StandardSchemaV1.InferOutput<TSchema>>
+> =>
   (async () => {
-  if (isErr(result)) {
-    return result;
-  }
+    if (isErr(result)) {
+      return result;
+    }
 
-  const validated = await schema["~standard"].validate(result.value);
+    const validated = await schema["~standard"].validate(result.value);
 
-  if (validated.issues) {
-    return err(
-      new SchemaError(schema["~standard"].vendor, validated.issues, validated),
-    );
-  }
+    if (validated.issues) {
+      return err(
+        new SchemaError(
+          schema["~standard"].vendor,
+          validated.issues,
+          validated,
+        ),
+      );
+    }
 
-  return ok(validated.value);
-})();
+    return ok(validated.value);
+  })();
 
 export class ParseError extends Error {
   name = "ParseError";
@@ -75,9 +81,7 @@ export class ParseError extends Error {
 
 type ResponseInput<TError = never> = Response | Either<TError, Response>;
 
-export function json(
-  response: Response,
-): Promise<Either<ParseError, unknown>>;
+export function json(response: Response): Promise<Either<ParseError, unknown>>;
 export function json<TError>(
   result: Either<TError, Response>,
 ): Promise<Either<TError | ParseError, unknown>>;
@@ -95,9 +99,7 @@ export async function json<TError>(
   }
 }
 
-export function text(
-  response: Response,
-): Promise<Either<ParseError, string>>;
+export function text(response: Response): Promise<Either<ParseError, string>>;
 export function text<TError>(
   result: Either<TError, Response>,
 ): Promise<Either<TError | ParseError, string>>;
@@ -115,9 +117,7 @@ export async function text<TError>(
   }
 }
 
-export function empty(
-  response: Response,
-): Promise<Either<ParseError, void>>;
+export function empty(response: Response): Promise<Either<ParseError, void>>;
 export function empty<TError>(
   result: Either<TError, Response>,
 ): Promise<Either<TError | ParseError, void>>;
@@ -138,7 +138,10 @@ export async function empty<TError>(
   }
 }
 
-export function decodeJson<TValue, TDecodeError extends DecodeError = DecodeError>(
+export function decodeJson<
+  TValue,
+  TDecodeError extends DecodeError = DecodeError,
+>(
   response: Response,
   decoder: Decoder<TValue, TDecodeError>,
 ): Promise<Either<ParseError | TDecodeError, TValue>>;
@@ -168,7 +171,9 @@ function toResponseEither<TError>(
   return input instanceof Response ? ok(input) : input;
 }
 
-function formatSchemaIssues(issues: ReadonlyArray<StandardSchemaV1.Issue>): string {
+function formatSchemaIssues(
+  issues: ReadonlyArray<StandardSchemaV1.Issue>,
+): string {
   if (issues.length === 0) {
     return "Schema validation failed.";
   }
