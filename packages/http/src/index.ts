@@ -1,3 +1,4 @@
+export * from "./internal/xhr.js";
 export * from "./internal/core.js";
 export * from "./internal/either.js";
 export * from "./internal/decoders.js";

@@ -1,13 +1,20 @@
+// @ts-expect-error
+import NodeXMLHttpRequest from "xhr2";
 import {
+  chain,
   composeInterceptors,
   createFetchHandler,
   createMemoryCacheStore,
+  createXhrHandler,
   decodeJson,
   defineInterceptor as defineCoreInterceptor,
   defineDecoder,
   err,
   expectOKStatus,
   expectStatus,
+  isErr,
+  json,
+  mapOk,
   match,
   ok,
   text,
@@ -84,6 +91,21 @@ const annotateResponse = defineCoreInterceptor(async ({ next }) => {
   );
 });
 
+const logRequestLifecycle = defineCoreInterceptor(async ({ request, next }) => {
+  console.log(`before request: ${request.method} ${request.url}`);
+
+  const result = await next();
+
+  console.log(
+    match(result, {
+      ok: (response) => `after request: ${response.status} ${request.url}`,
+      err: (error) => `after request error: ${getErrorMessage(error)}`,
+    }),
+  );
+
+  return result;
+});
+
 const decodeUser = defineDecoder<User>((input) => {
   if (
     typeof input === "object" &&
@@ -126,7 +148,54 @@ const handler = composeInterceptors(
   }),
 );
 
+type AxiosResponse<T = any> = {
+  data: T;
+  status: number;
+  statusText: string;
+};
+
+type AxiosError = {
+  config: Request;
+  response: AxiosResponse;
+};
+
+const axiosDecoder = defineCoreInterceptor(async (ctx) => {
+  const response = await ctx.next();
+
+  if (response.ok) {
+    const res = response.value;
+    const data = await json(res);
+
+    if (isErr(data)) {
+      throw data.error;
+    }
+
+    const obj = {
+      data: data.value,
+      status: res.status,
+      statusText: res.statusText,
+    };
+
+    return res.ok ? ok(obj) : err(obj);
+  }
+
+  return response;
+});
+
+const axios = composeInterceptors(
+  withTimeout(250),
+  withHeaders({ accept: "application/json" }),
+  withRetry({ retries: 1 }),
+  axiosDecoder,
+)(
+  createFetchHandler({
+    fetch: createMockFetch(),
+  }),
+);
+
 async function runExample() {
+  const axiosResponse = await axios("https://api.example.com/users/42");
+
   const firstResponse = await handler("https://api.example.com/users/42");
 
   const firstUser = await decodeJson(
@@ -154,6 +223,9 @@ async function runExample() {
       err: (error) => `cached request failed: ${getErrorMessage(error)}`,
     }),
   );
+
+  await runXhrExample();
+  await runComposedXhrExample();
 }
 
 void runExample();
@@ -208,4 +280,71 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Unknown error";
+}
+
+globalThis.XMLHttpRequest =
+  NodeXMLHttpRequest as unknown as typeof XMLHttpRequest;
+
+async function runXhrExample() {
+  if (typeof XMLHttpRequest === "undefined") {
+    console.log("xhr example skipped: XMLHttpRequest is not available");
+    return;
+  }
+
+  const xhr = createXhrHandler();
+
+  const result = await xhr("https://placehold.co/320x240/png", {
+    observer(_requestObserver, responseObserver) {
+      responseObserver.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          return;
+        }
+
+        const percent = ((event.loaded / (event.total ?? 1)) * 100).toFixed(0);
+        console.log(`xhr download progress: ${percent}%`);
+      };
+    },
+  });
+
+  console.log(
+    match(result, {
+      ok: (response) => `xhr download status: ${response.status}`,
+      err: (error) => `xhr request failed: ${getErrorMessage(error)}`,
+    }),
+  );
+}
+
+async function runComposedXhrExample() {
+  if (typeof XMLHttpRequest === "undefined") {
+    console.log(
+      "composed xhr example skipped: XMLHttpRequest is not available",
+    );
+    return;
+  }
+
+  const xhr = composeInterceptors(
+    logRequestLifecycle,
+    withHeaders({ accept: "image/png" }),
+    withTimeout(2_000),
+  )(createXhrHandler());
+
+  const result = await xhr("https://placehold.co/320x240/png", {
+    observer(_requestObserver, responseObserver) {
+      responseObserver.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          return;
+        }
+
+        const percent = ((event.loaded / (event.total ?? 1)) * 100).toFixed(0);
+        console.log(`composed xhr progress: ${percent}%`);
+      };
+    },
+  });
+
+  console.log(
+    match(result, {
+      ok: (response) => `composed xhr status: ${response.status}`,
+      err: (error) => `composed xhr failed: ${getErrorMessage(error)}`,
+    }),
+  );
 }

@@ -26,7 +26,18 @@ export interface Input {
 
 export type Result = Either<FetchError, Response>;
 
-export type Handler = (request: Request) => Promise<Result>;
+export interface ExecutableHandler<
+  TResult extends AnyEither,
+  TInit extends RequestInit = RequestInit,
+> {
+  (input: RequestInfo | URL): Promise<TResult>;
+  (input: RequestInfo | URL, init?: TInit): Promise<TResult>;
+}
+
+export type Handler<
+  TResult extends AnyEither = Result,
+  TInit extends RequestInit = RequestInit,
+> = ExecutableHandler<TResult, TInit>;
 
 export type Next<R extends AnyEither> = (request?: Request) => Promise<R>;
 
@@ -70,10 +81,11 @@ export type ComposeInterceptorsResult<
   ? InterceptorResult<THead> | ComposeInterceptorsResult<TTail, TResult>
   : TResult;
 
-export interface ExecutableHandler<TResult extends AnyEither> {
-  (input: RequestInfo | URL): Promise<TResult>;
-  (input: RequestInfo | URL, init?: RequestInit): Promise<TResult>;
-}
+type HandlerResult<THandler extends Handler<any, any>> = Awaited<
+  ReturnType<THandler>
+>;
+
+type HandlerInit<THandler extends Handler<any, any>> = Parameters<THandler>[1];
 
 /**
  * Base error returned when a request fails before a response is produced.
@@ -108,14 +120,19 @@ export class TimeoutError extends FetchError {
  * ```
  */
 export const createFetchHandler = (context: Context): Handler => {
-  return async (request) => {
+  const execute = async (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Result> => {
     try {
-      const response = await context.fetch(request);
+      const response = await context.fetch(input, init);
       return ok(response);
     } catch (error) {
       return err(normalizeError(error));
     }
   };
+
+  return execute as Handler;
 };
 
 /**
@@ -147,24 +164,29 @@ export const composeInterceptors =
   <const TInterceptors extends readonly AnyInterceptor[]>(
     ...interceptors: TInterceptors
   ) =>
-  <THandler extends Handler>(
+  <THandler extends Handler<any, any>>(
     handler: THandler,
-  ): ExecutableHandler<ComposeInterceptorsResult<TInterceptors>> => {
+  ): ExecutableHandler<
+    ComposeInterceptorsResult<TInterceptors, HandlerResult<THandler>>,
+    NonNullable<HandlerInit<THandler>>
+  > => {
     const execute = async (
       input: RequestInfo | URL,
-      init?: RequestInit,
-    ): Promise<ComposeInterceptorsResult<TInterceptors>> => {
+      init?: NonNullable<HandlerInit<THandler>>,
+    ): Promise<ComposeInterceptorsResult<TInterceptors, HandlerResult<THandler>>> => {
       const request = new Request(input, init);
 
       const dispatch = async (
         index: number,
         currentRequest: Request,
-      ): Promise<ComposeInterceptorsResult<TInterceptors>> => {
+      ): Promise<
+        ComposeInterceptorsResult<TInterceptors, HandlerResult<THandler>>
+      > => {
         const interceptor = interceptors[index];
 
         if (!interceptor) {
-          return handler(currentRequest) as Promise<
-            ComposeInterceptorsResult<TInterceptors>
+          return handler(currentRequest, init) as Promise<
+            ComposeInterceptorsResult<TInterceptors, HandlerResult<THandler>>
           >;
         }
 
@@ -172,13 +194,18 @@ export const composeInterceptors =
           request: currentRequest,
           next: (nextRequest = currentRequest) =>
             dispatch(index + 1, nextRequest),
-        }) as Promise<ComposeInterceptorsResult<TInterceptors>>;
+        }) as Promise<
+          ComposeInterceptorsResult<TInterceptors, HandlerResult<THandler>>
+        >;
       };
 
       return dispatch(0, request);
     };
 
-    return execute as ExecutableHandler<ComposeInterceptorsResult<TInterceptors>>;
+    return execute as ExecutableHandler<
+      ComposeInterceptorsResult<TInterceptors, HandlerResult<THandler>>,
+      NonNullable<HandlerInit<THandler>>
+    >;
   };
 
 /**

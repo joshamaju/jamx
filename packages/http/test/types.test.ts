@@ -5,6 +5,7 @@ import {
   chain,
   composeInterceptors,
   createFetchHandler,
+  createXhrHandler,
   defineInterceptor as defineCoreInterceptor,
   decodeJson,
   err,
@@ -18,10 +19,12 @@ import {
   type ExecutableHandler,
   type FetchError,
   type ParseError,
+  type ProgressRequestInit,
   type Result,
   type SchemaError,
   type StatusError,
   type TimeoutError,
+  type XhrResult,
   withTimeout,
 } from "../src/index.js";
 
@@ -233,6 +236,30 @@ describe("type inference", () => {
 
     expectTypeOf<FetchError>().toMatchTypeOf<
       FailureOf<Awaited<ReturnType<typeof timeoutHandler>>>
+    >();
+  });
+
+  it("preserves progress-aware init types through composition", () => {
+    const xhrHandler = createXhrHandler();
+    const composedXhrHandler = composeInterceptors(wrappedAnnotate)(xhrHandler);
+
+    expectTypeOf(xhrHandler).toMatchTypeOf<
+      ExecutableHandler<XhrResult, ProgressRequestInit>
+    >();
+
+    expectTypeOf<TimeoutError>().toMatchTypeOf<
+      FailureOf<Awaited<ReturnType<typeof xhrHandler>>>
+    >();
+
+    expectTypeOf<FetchError>().toMatchTypeOf<
+      FailureOf<Awaited<ReturnType<typeof xhrHandler>>>
+    >();
+
+    expectTypeOf(composedXhrHandler).toMatchTypeOf<
+      ExecutableHandler<
+        Awaited<ReturnType<typeof composedXhrHandler>>,
+        ProgressRequestInit
+      >
     >();
   });
 });

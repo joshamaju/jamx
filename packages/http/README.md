@@ -40,6 +40,7 @@ const handler = composeInterceptors(
 ```ts
 import {
   createFetchHandler,
+  createXhrHandler,
   decodeJson,
   defaultContext,
   defaultFetch,
@@ -50,12 +51,33 @@ const customFetch = createFetchHandler(defaultContext);
 
 const response = await defaultFetch("https://api.example.com/users/42");
 const user = await decodeJson(expectStatus(response, 200), decodeUser);
+
+---
+
+const fetchXhr = createXhrHandler();
+
+await fetchXhr("https://api.example.com/upload", {
+  body: file,
+  method: "POST",
+  observer(requestObserver, responseObserver) {
+    requestObserver.onprogress = (event) => {
+      console.log("upload", event.loaded, event.total);
+    };
+
+    responseObserver.onprogress = (event) => {
+      console.log("download", event.loaded, event.total);
+    };
+  },
+});
 ```
 
 - `defaultContext` is a reusable `Context` backed by `globalThis.fetch`.
 - `defaultFetch` is `createFetchHandler(defaultContext)`.
 - `createFetchHandler(...)` is useful when you want to inject a mocked or custom
   fetch implementation.
+- `createXhrHandler(...)` provides a browser-only `XMLHttpRequest` transport that
+  mirrors the proposed fetch `observer(...)` progress API while still returning
+  standard `Response` values.
 - `composeInterceptors(...)` returns an executable handler with a composed result.
 
 ## Decoder Helpers
