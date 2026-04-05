@@ -3,6 +3,42 @@
 Composable HTTP helpers built around `fetch`, interceptors, and `Either`-style
 results.
 
+## Why
+
+`@jamx/http` exists to make HTTP code easier to compose, test, and reason about
+without hiding the platform.
+
+Many HTTP libraries trade clarity for convenience by wrapping `fetch` in a
+large client abstraction. That can feel productive at first, but it tends to
+blend unrelated concerns like request shaping, transport failures, status
+checks, body parsing, retries, auth, caching, and schema validation into one
+surface area.
+
+This package takes a narrower approach:
+
+- stay close to web standards like `Request`, `Response`, `Headers`,
+  `AbortSignal`, and `fetch`
+- model ordinary failures explicitly with `Either`-style results instead of
+  relying on exceptions for control flow
+- keep sending, validating, parsing, decoding, retrying, caching, and timing
+  out as separate steps that compose cleanly
+- make behavior local and inspectable through interceptors instead of hidden
+  global client state
+- support interchangeable transports so the same pipeline can wrap `fetch` or
+  `XMLHttpRequest` when progress reporting matters
+
+In practice, `@jamx/http` is not trying to be a monolithic HTTP client. It is a
+small set of primitives for building request pipelines that stay obvious under
+maintenance.
+
+## Design Principles
+
+- `fetch` first, not `fetch` replaced
+- composition over configuration
+- explicit results over ambient exceptions
+- small helpers over monolithic clients
+- platform-native types over custom request and response models
+
 ## Install
 
 ```bash
