@@ -2,6 +2,18 @@
 
 `jamx` is a monorepo for small, composable TypeScript packages.
 
+## Philosophy
+
+The packages in this repository are built around a consistent set of ideas:
+
+- small APIs over large frameworks
+- composition over deeply coupled abstractions
+- explicit types and structured data over hidden behavior
+- utilities that stay useful on their own and compose well together
+
+Each package should be understandable in isolation, practical in day-to-day
+use, and easy to combine with the rest of the TypeScript ecosystem.
+
 ## Packages
 
 - [`@jamx/http`](./packages/http): composable `fetch` helpers with interceptors, decoders, validation, and Railway-style results
