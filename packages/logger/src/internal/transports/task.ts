@@ -98,16 +98,24 @@ interface ActiveTaskState {
 }
 
 export class TaskConsoleTransport implements Transport {
+  private _formatter: Formatter;
   private readonly activeTasks = new Map<string, ActiveTaskState>();
   private readonly colorize: boolean;
   private readonly errorSuffix: string;
-  private readonly formatter: Formatter;
   private readonly frames: readonly string[];
   private readonly interactive: boolean;
   private readonly prefix: string;
   private renderedTaskCount = 0;
   private readonly successSuffix: string;
   private readonly write: (chunk: string) => void;
+
+  get formatter(): Formatter {
+    return this._formatter;
+  }
+
+  set formatter(formatter: Formatter) {
+    this._formatter = formatter;
+  }
 
   constructor({
     formatter,
@@ -119,7 +127,7 @@ export class TaskConsoleTransport implements Transport {
     successSuffix = "[ok]",
     errorSuffix = "[x]",
   }: TaskConsoleTransportOptions) {
-    this.formatter = formatter;
+    this._formatter = formatter;
     this.write = write;
     this.interactive = interactive;
     this.colorize = colorize;
@@ -136,7 +144,7 @@ export class TaskConsoleTransport implements Transport {
     if (!task) {
       this.clearRenderedTasks();
       this.writeLine(
-        this.formatter.format(displayLog),
+        this._formatter.format(displayLog),
         log.severity >= Severity.Warn,
       );
       this.renderActiveTasks();
@@ -145,7 +153,7 @@ export class TaskConsoleTransport implements Transport {
 
     if (!this.interactive) {
       this.writeLine(
-        this.formatter.format(displayLog),
+        this._formatter.format(displayLog),
         log.severity >= Severity.Warn,
       );
       return;
@@ -158,7 +166,7 @@ export class TaskConsoleTransport implements Transport {
       this.completeTask(
         task.id,
         this.decorateCompletedOutput(
-          this.formatter.format(displayLog),
+          this._formatter.format(displayLog),
           log.severity >= Severity.Warn,
         ),
         log.severity >= Severity.Warn,
@@ -168,7 +176,7 @@ export class TaskConsoleTransport implements Transport {
 
     this.activeTasks.set(task.id, {
       output: this.decorateActiveOutput(
-        this.formatter.format(displayLog),
+        this._formatter.format(displayLog),
         frameIndex,
       ),
       frameIndex: (frameIndex + 1) % this.frames.length,

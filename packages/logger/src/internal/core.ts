@@ -19,10 +19,12 @@ export interface LogRecord {
 }
 
 export interface ILogger {
+  transport: Transport;
   log(severity: Severity, message: string, meta?: LogMeta): void;
 }
 
 export interface Transport {
+  formatter?: Formatter;
   capture(log: LogRecord): void;
 }
 

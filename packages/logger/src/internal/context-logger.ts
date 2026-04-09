@@ -1,4 +1,4 @@
-import { ILogger, LogMeta, Severity } from "./core.js";
+import { ILogger, LogMeta, Severity, Transport } from "./core.js";
 import { NamedLoggerOptions } from "./types.js";
 import { createLogger } from "./logger.js";
 import { assertMeta } from "./shared.js";
@@ -9,6 +9,14 @@ export class ContextLogger implements ILogger {
     private readonly meta: LogMeta = {},
   ) {
     assertMeta(meta, "Context logger base metadata");
+  }
+
+  get transport(): Transport {
+    return this.logger.transport;
+  }
+
+  set transport(transport: Transport) {
+    this.logger.transport = transport;
   }
 
   log(severity: Severity, message: string, meta: LogMeta = {}): void {

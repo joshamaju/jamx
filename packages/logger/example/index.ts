@@ -60,6 +60,20 @@ request_logger.info("Request completed", {
   durationMs: 18,
 });
 
+const og_transport = request_logger.transport;
+const og_formatter = og_transport.formatter;
+
+request_logger.transport = new MemoryTransport();
+
+request_logger.info("Switched transport");
+
+// @ts-expect-error
+console.log(request_logger.transport.logs);
+
+request_logger.transport = og_transport;
+
+request_logger.debug("Switched transport back");
+
 const worker_logger = createLogger({
   minSeverity: Severity.Info,
   transport: new ConsoleTransport(new TextFormatter()),

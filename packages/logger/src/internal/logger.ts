@@ -3,9 +3,9 @@ import { Transport, Severity, LogMeta, LogRecord, ILogger } from "./core.js";
 import { LoggerOptions } from "./types.js";
 
 export class Logger implements ILogger {
+  private _transport: Transport;
   private readonly meta: LogMeta;
   private readonly clock: () => Date;
-  private readonly transport: Transport;
   private readonly minSeverity: Severity;
 
   constructor({
@@ -17,8 +17,16 @@ export class Logger implements ILogger {
     assertMeta(meta, "Logger base metadata");
     this.clock = clock;
     this.meta = { ...meta };
-    this.transport = transport;
+    this._transport = transport;
     this.minSeverity = minSeverity;
+  }
+
+  get transport(): Transport {
+    return this._transport;
+  }
+
+  set transport(transport: Transport) {
+    this._transport = transport;
   }
 
   log(severity: Severity, message: string, meta: LogMeta = {}): void {
@@ -36,7 +44,7 @@ export class Logger implements ILogger {
       severityName: getSeverityName(severity),
     };
 
-    this.transport.capture(record);
+    this._transport.capture(record);
   }
 
   private shouldLog(severity: Severity): boolean {
