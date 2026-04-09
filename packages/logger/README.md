@@ -65,9 +65,7 @@ import {
 const logger = createNamedLogger({
   name: "api",
   minSeverity: Severity.Info,
-  transport: new ConsoleTransport(
-    new PrettyFormatter({ colorize: true }),
-  ),
+  transport: new ConsoleTransport(new PrettyFormatter({ colorize: true })),
 });
 
 logger.info("Request completed", {
@@ -99,37 +97,6 @@ logger.log(Severity.Info, "charge succeeded", {
   amount: 5000,
   currency: "USD",
 });
-```
-
-## Task Logging
-
-The package also ships with a task-oriented console transport and helper wrapper for async work:
-
-```ts
-import {
-  createNamedLogger,
-  createTaskLogger,
-  PrettyFormatter,
-  TaskConsoleTransport,
-} from "@jamx/logger";
-
-const taskLogger = createTaskLogger(
-  createNamedLogger({
-    name: "tasks",
-    transport: new TaskConsoleTransport({
-      formatter: new PrettyFormatter({ colorize: false }),
-      interactive: true,
-      prefix: "task",
-    }),
-  }),
-);
-
-const task = taskLogger.start("Syncing user", {
-  meta: { userId: "user_42" },
-});
-
-task.update("Syncing user", { progress: "50%" });
-task.success("Synced user", { durationMs: 120 });
 ```
 
 ## Exports
