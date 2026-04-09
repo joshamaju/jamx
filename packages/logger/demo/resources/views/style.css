@@ -1,0 +1,16 @@
+@import url("@xterm/xterm/css/xterm.css");
+
+html,
+body {
+  margin: 0;
+  color: white;
+  height: 100%;
+  line-height: 1.5;
+  background-color: black;
+  font-family: "Ubuntu", sans-serif;
+}
+
+#terminal {
+  width: 100%;
+  height: 100%;
+}
