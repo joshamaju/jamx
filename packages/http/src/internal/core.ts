@@ -86,16 +86,6 @@ export class FetchError extends Error {
   }
 }
 
-export class TimeoutError extends FetchError {
-  name = "TimeoutError";
-  readonly timeoutMs: number;
-
-  constructor(timeoutMs: number, cause?: unknown) {
-    super(`Fetch request timed out after ${timeoutMs}ms.`, cause);
-    this.timeoutMs = timeoutMs;
-  }
-}
-
 /**
  * Creates a `fetch`-backed handler that returns `Either<FetchError, Response>`.
  *
@@ -178,7 +168,9 @@ export const composeInterceptors =
       return dispatch(0, request);
     };
 
-    return execute as ExecutableHandler<ComposeInterceptorsResult<TInterceptors>>;
+    return execute as ExecutableHandler<
+      ComposeInterceptorsResult<TInterceptors>
+    >;
   };
 
 /**

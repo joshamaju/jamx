@@ -1,4 +1,4 @@
-import { defineInterceptor, Result, TimeoutError } from "./core.js";
+import { defineInterceptor, FetchError, Result } from "./core.js";
 import { isErr, isOk, ok } from "./either.js";
 import type { Left } from "./either.js";
 
@@ -86,6 +86,16 @@ export const withAuth = (
  * const fetcher = composeInterceptors(withTimeout(500))(defaultFetch);
  * ```
  */
+export class TimeoutError extends FetchError {
+  name = "TimeoutError";
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number, cause?: unknown) {
+    super(`Fetch request timed out after ${timeoutMs}ms.`, cause);
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export const withTimeout = (timeoutMs: number) =>
   defineInterceptor(async ({ request, next }) => {
     const controller = new AbortController();
