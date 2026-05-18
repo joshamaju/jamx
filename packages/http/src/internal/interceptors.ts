@@ -1,6 +1,6 @@
-import { defineInterceptor, Result, TimeoutError } from "./core.js";
-import { isErr, isOk, ok } from "./either.js";
+import { defineInterceptor, type Input, type Result } from "./core.js";
 import type { Left } from "./either.js";
+import { isErr, isOk, ok } from "./either.js";
 
 /**
  * Rebases a request URL onto a configured base URL while preserving the
@@ -8,104 +8,129 @@ import type { Left } from "./either.js";
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withBaseUrl } from "@jamx/http";
+ * import { compose, defaultFetch, withBaseUrl } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(
- *   withBaseUrl("https://api.example.com/v1"),
- * )(defaultFetch);
+ * const fetcher = compose(withBaseUrl("https://api.example.com/v1"))(defaultFetch);
  * ```
  */
-export const withBaseUrl = (baseUrl: string | URL) =>
-  defineInterceptor(async ({ request, next }) => {
-    const currentUrl = new URL(request.url);
+export function withBaseUrl(base_url: string | URL) {
+  return defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
+    const current_url = getUrl(input, base_url);
 
     const url = new URL(
-      `${trimTrailingSlash(baseUrl.toString())}/${trimLeadingSlash(
-        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+      `${trimTrailingSlash(base_url.toString())}/${trimLeadingSlash(
+        `${current_url.pathname}${current_url.search}${current_url.hash}`,
       )}`,
     );
 
-    return next(new Request(url, request));
+    return next({
+      input: input instanceof Request ? new Request(url, input) : url,
+      init,
+    });
   });
+}
 
 /**
  * Merges additional headers into the outgoing request.
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withHeaders } from "@jamx/http";
+ * import { compose, defaultFetch, withHeaders } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(
+ * const fetcher = compose(
  *   withHeaders({ accept: "application/json" }),
  * )(defaultFetch);
  * ```
  */
-export const withHeaders = (
+export function withHeaders(
   headers: HeadersInit | ((request: Request) => HeadersInit),
-) =>
-  defineInterceptor(async ({ request, next }) => {
-    const nextHeaders = new Headers(request.headers);
-    const extraHeaders =
-      typeof headers === "function" ? headers(request) : headers;
+) {
+  return defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
+    const next_headers = getHeaders(input, init);
+    const extra_headers =
+      typeof headers === "function"
+        ? headers(new Request(input, init))
+        : headers;
 
-    new Headers(extraHeaders).forEach((value, key) => {
-      nextHeaders.set(key, value);
+    new Headers(extra_headers).forEach((value, key) => {
+      next_headers.set(key, value);
     });
 
-    return next(new Request(request, { headers: nextHeaders }));
+    return next({
+      input,
+      init: { ...init, headers: next_headers },
+    });
   });
+}
 
 /**
  * Adds an `Authorization` header using the given token and scheme.
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withAuth } from "@jamx/http";
+ * import { compose, defaultFetch, withAuth } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(withAuth("demo-token"))(defaultFetch);
+ * const fetcher = compose(withAuth("demo-token"))(defaultFetch);
  * ```
  */
-export const withAuth = (
+export function withAuth(
   token: string | ((request: Request) => string),
   scheme = "Bearer",
-) =>
-  defineInterceptor(async ({ request, next }) => {
-    const resolvedToken = typeof token === "function" ? token(request) : token;
-    const headers = new Headers(request.headers);
+) {
+  return defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
+    const resolvedToken =
+      typeof token === "function" ? token(new Request(input, init)) : token;
+    const headers = getHeaders(input, init);
     headers.set("authorization", `${scheme} ${resolvedToken}`);
-    return next(new Request(request, { headers }));
+    return next({ input, init: { ...init, headers } });
   });
+}
 
 /**
  * Aborts requests that take longer than the given timeout.
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withTimeout } from "@jamx/http";
+ * import { compose, defaultFetch, withTimeout } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(withTimeout(500))(defaultFetch);
+ * const fetcher = compose(withTimeout(500))(defaultFetch);
  * ```
  */
+export class TimeoutError extends Error {
+  name = "TimeoutError";
+  readonly _tag = "FetchError";
+
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number, cause?: unknown) {
+    super(`Fetch request timed out after ${timeoutMs}ms.`, { cause });
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export const withTimeout = (timeoutMs: number) =>
   defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = mergeSignals(getSignal(input, init), controller.signal);
 
-    const timedRequest = new Request(request, {
-      signal: mergeSignals(request.signal, controller.signal),
-    });
+    const timed_request = {
+      input,
+      init: { ...init, signal },
+    };
 
     try {
       return await Promise.race([
-        next(timedRequest),
+        next(timed_request),
         new Promise<Left<TimeoutError>>((resolve) => {
-          timedRequest.signal.addEventListener(
+          signal.addEventListener(
             "abort",
             () => {
-              resolve({
-                ok: false,
-                error: new TimeoutError(timeoutMs),
-              });
+              resolve({ ok: false, error: new TimeoutError(timeoutMs) });
             },
             { once: true },
           );
@@ -116,13 +141,11 @@ export const withTimeout = (timeoutMs: number) =>
     }
   });
 
-const mergeSignals = (
+function mergeSignals(
   left: AbortSignal | null,
   right: AbortSignal,
-): AbortSignal => {
-  if (!left) {
-    return right;
-  }
+): AbortSignal {
+  if (!left) return right;
 
   const anySignal = AbortSignal;
 
@@ -142,16 +165,6 @@ const mergeSignals = (
   right.addEventListener("abort", abort, { once: true });
 
   return controller.signal;
-};
-
-export interface RetryOptions {
-  retries: number;
-  methods?: readonly string[];
-  shouldRetry?: (
-    result: Result,
-    attempt: number,
-    request: Request,
-  ) => boolean | Promise<boolean>;
 }
 
 /**
@@ -160,43 +173,54 @@ export interface RetryOptions {
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withRetry } from "@jamx/http";
+ * import { compose, defaultFetch, withRetry } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(withRetry({ retries: 2 }))(defaultFetch);
+ * const fetcher = compose(withRetry({ retries: 2 }))(defaultFetch);
  * ```
  */
-export const withRetry = (options: RetryOptions) =>
-  defineInterceptor(async ({ request, next }) => {
-    for (let attempt = 0; attempt <= options.retries; attempt += 1) {
-      const attemptRequest = new Request(request);
-      const result = await next(attemptRequest);
+export interface RetryOptions {
+  retries: number;
+  methods?: readonly string[];
+  shouldRetry?: (
+    result: Result,
+    attempt: number,
+    request: Input,
+  ) => boolean | Promise<boolean>;
+}
 
-      const shouldRetry = await shouldRetryResult(
+export function withRetry(options: RetryOptions) {
+  return defineInterceptor(async ({ request, next }) => {
+    for (let attempt = 0; attempt <= options.retries; attempt += 1) {
+      const attempt_request = cloneInput(request);
+      const result = await next(attempt_request);
+
+      const should_retry = await shouldRetryResult(
         result,
         attempt,
         request,
         options,
       );
 
-      if (!shouldRetry) {
-        return result;
-      }
+      if (!should_retry) return result;
     }
 
-    return next(new Request(request));
+    return next(cloneInput(request));
   });
+}
 
-const shouldRetryResult = async (
+async function shouldRetryResult(
   result: Result,
   attempt: number,
-  request: Request,
+  request: Input,
   options: RetryOptions,
-): Promise<boolean> => {
+): Promise<boolean> {
   if (attempt >= options.retries) {
     return false;
   }
 
-  if (!isRetryableMethod(request.method, options.methods)) {
+  if (
+    !isRetryableMethod(getMethod(request.input, request.init), options.methods)
+  ) {
     return false;
   }
 
@@ -205,17 +229,6 @@ const shouldRetryResult = async (
   }
 
   return isErr(result) || (isOk(result) && result.value.status >= 500);
-};
-
-export interface CacheStore {
-  get(key: string): Response | undefined | Promise<Response | undefined>;
-  set(key: string, response: Response): void | Promise<void>;
-}
-
-export interface CacheOptions {
-  store?: CacheStore;
-  key?: (request: Request) => string;
-  shouldCache?: (result: Result, request: Request) => boolean;
 }
 
 /**
@@ -223,30 +236,39 @@ export interface CacheOptions {
  *
  * @example
  * ```ts
- * import { composeInterceptors, createMemoryCacheStore, defaultFetch, withCache } from "@jamx/http";
+ * import { compose, createMemoryCacheStore, defaultFetch, withCache } from "@jamx/http";
  *
  * const store = createMemoryCacheStore();
- * const fetcher = composeInterceptors(withCache({ store }))(defaultFetch);
+ * const fetcher = compose(withCache({ store }))(defaultFetch);
  * ```
  */
-export const withCache = (options: CacheOptions = {}) => {
+export interface CacheStore {
+  get(key: string): Response | undefined | Promise<Response | undefined>;
+  set(key: string, response: Response): void | Promise<void>;
+}
+
+export interface CacheOptions {
+  store?: CacheStore;
+  key?: (request: Input) => string;
+  shouldCache?: (result: Result, request: Input) => boolean;
+}
+
+export function withCache(options: CacheOptions = {}) {
   const store = options.store ?? createMemoryCacheStore();
 
   return defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
     const key = (options.key ?? defaultCacheKey)(request);
 
-    if (request.method === "GET") {
+    if (getMethod(input, init) === "GET") {
       const cached = await store.get(key);
-
-      if (cached) {
-        return ok(cached.clone());
-      }
+      if (cached) return ok(cached.clone());
     }
 
-    const result = await next(new Request(request));
+    const result = await next(cloneInput(request));
 
     if (
-      request.method === "GET" &&
+      getMethod(input, init) === "GET" &&
       isOk(result) &&
       (options.shouldCache ?? defaultShouldCache)(result, request)
     ) {
@@ -255,7 +277,7 @@ export const withCache = (options: CacheOptions = {}) => {
 
     return result;
   });
-};
+}
 
 /**
  * Creates an in-memory cache store compatible with `withCache`.
@@ -267,7 +289,7 @@ export const withCache = (options: CacheOptions = {}) => {
  * const store = createMemoryCacheStore();
  * ```
  */
-export const createMemoryCacheStore = (): CacheStore => {
+export function createMemoryCacheStore(): CacheStore {
   const store = new Map<string, Response>();
 
   return {
@@ -279,21 +301,25 @@ export const createMemoryCacheStore = (): CacheStore => {
       store.set(key, response.clone());
     },
   };
+}
+
+const defaultShouldCache = (result: Result): boolean => {
+  return isOk(result) && result.value.ok;
 };
 
-const defaultShouldCache = (result: Result): boolean =>
-  isOk(result) && result.value.ok;
-
-const defaultCacheKey = (request: Request): string =>
-  `${request.method}:${request.url}:${serializeHeaders(request.headers)}`;
+const defaultCacheKey = (request: Input): string => {
+  return `${getMethod(request.input, request.init)}:${getUrl(
+    request.input,
+  ).href}:${serializeHeaders(getHeaders(request.input, request.init))}`;
+};
 
 const DEFAULT_RETRY_METHODS = new Set([
-  "DELETE",
   "GET",
-  "HEAD",
-  "OPTIONS",
   "PUT",
+  "HEAD",
   "TRACE",
+  "DELETE",
+  "OPTIONS",
 ]);
 
 const isRetryableMethod = (
@@ -324,3 +350,46 @@ const serializeHeaders = (headers: Headers): string => {
 const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, "");
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
+
+const getUrl = (input: RequestInfo | URL, base?: string | URL): URL => {
+  if (input instanceof Request) {
+    return new URL(input.url);
+  }
+
+  return new URL(input, base);
+};
+
+const getHeaders = (input: RequestInfo | URL, init?: RequestInit): Headers => {
+  const headers = new Headers(
+    input instanceof Request ? input.headers : init?.headers,
+  );
+
+  if (input instanceof Request && init?.headers) {
+    new Headers(init.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  return headers;
+};
+
+const getSignal = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): AbortSignal | null => {
+  return init?.signal ?? (input instanceof Request ? input.signal : null);
+};
+
+const getMethod = (input: RequestInfo | URL, init?: RequestInit): string => {
+  return (
+    init?.method ?? (input instanceof Request ? input.method : "GET")
+  ).toUpperCase();
+};
+
+const cloneInput = (request: Input): Input => {
+  return {
+    input:
+      request.input instanceof Request ? request.input.clone() : request.input,
+    init: request.init,
+  };
+};

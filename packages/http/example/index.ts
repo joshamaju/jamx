@@ -1,5 +1,5 @@
 import {
-  composeInterceptors,
+  compose,
   createFetchHandler,
   createMemoryCacheStore,
   decodeJson,
@@ -111,7 +111,7 @@ const decodeUser = defineDecoder<User>((input) => {
   });
 });
 
-const handler = composeInterceptors(
+const handler = compose(
   withTimeout(250),
   withHeaders({ accept: "application/json" }),
   withAuth("demo-token"),

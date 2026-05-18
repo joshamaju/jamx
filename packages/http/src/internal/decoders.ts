@@ -63,7 +63,7 @@ export class SchemaError extends Error {
  * const result = await validate(parsed, schema);
  * ```
  */
-export const validate = <
+export function validate<
   TError,
   TDecodedValue,
   TSchema extends StandardSchemaV1<TDecodedValue, any>,
@@ -72,11 +72,9 @@ export const validate = <
   schema: TSchema,
 ): Promise<
   Either<TError | SchemaError, StandardSchemaV1.InferOutput<TSchema>>
-> =>
-  (async () => {
-    if (isErr(result)) {
-      return result;
-    }
+> {
+  return (async () => {
+    if (isErr(result)) return result;
 
     const validated = await schema["~standard"].validate(result.value);
 
@@ -92,12 +90,14 @@ export const validate = <
 
     return ok(validated.value);
   })();
+}
 
 /**
  * Error returned when a body helper cannot parse a response payload.
  */
 export class ParseError extends Error {
   name = "ParseError";
+  readonly _tag = "ParseError";
   readonly response: Response;
   readonly operation: "json" | "text" | "empty";
 
