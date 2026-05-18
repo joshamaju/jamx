@@ -19,6 +19,12 @@ export const defaultContext: Context = {
   fetch: globalThis.fetch,
 };
 
+/**
+ * Normalized fetch input carried through an interceptor chain.
+ *
+ * This mirrors the platform `fetch(input, init?)` call shape while keeping the
+ * pair together as a single value for interceptors and handlers.
+ */
 export interface Input {
   input: RequestInfo | URL;
   init?: RequestInit;
@@ -26,12 +32,32 @@ export interface Input {
 
 export type Result = Either<FetchError, Response>;
 
-export type Handler = (request: Request) => Promise<Result>;
+export type Handler<TResult extends AnyEither = Result> = ((
+  request: Input,
+) => Promise<TResult>) &
+  ExecutableHandler<TResult>;
 
-export type Next<R extends AnyEither> = (request?: Request) => Promise<R>;
+/**
+ * Continues an interceptor chain.
+ *
+ * Calling `next()` forwards the current request unchanged. Passing either a
+ * normalized `Input` object or fetch-style `(input, init?)` replaces the request
+ * seen by downstream interceptors and the final handler.
+ */
+export interface Next<R extends AnyEither> {
+  (): Promise<R>;
+  (request: Input): Promise<R>;
+  (input: RequestInfo | URL, init?: RequestInit): Promise<R>;
+}
 
+/**
+ * Context passed to each interceptor.
+ *
+ * `request` is the normalized `{ input, init }` form, so relative URLs can move
+ * through the chain until an interceptor such as `withBaseUrl` resolves them.
+ */
 export interface InterceptorContext<T extends AnyEither> {
-  request: Request;
+  request: Input;
   next: Next<T>;
 }
 
@@ -99,14 +125,23 @@ export class FetchError extends Error {
  * ```
  */
 export const createFetchHandler = (context: Context): Handler => {
-  return async (request) => {
+  const handler = async (
+    request: Input | RequestInfo | URL,
+    init?: RequestInit,
+  ) => {
+    const input = normalizeInput(request, init);
+
     try {
-      const response = await context.fetch(request);
+      const response = await context.fetch(
+        new Request(input.input, input.init),
+      );
       return ok(response);
     } catch (error) {
       return err(normalizeError(error));
     }
   };
+
+  return handler as Handler;
 };
 
 /**
@@ -123,6 +158,10 @@ export const defaultFetch = createFetchHandler(defaultContext);
 
 /**
  * Composes one or more interceptors into an executable HTTP handler.
+ *
+ * `compose` keeps the original fetch-style input in normalized `{ input, init }`
+ * form until the terminal handler runs. This lets URL-shaping interceptors
+ * resolve relative paths before a platform `Request` is constructed.
  *
  * @example
  * ```ts
@@ -145,11 +184,11 @@ export const compose =
       input: RequestInfo | URL,
       init?: RequestInit,
     ): Promise<ComposeInterceptorsResult<TInterceptors>> => {
-      const request = new Request(input, init);
+      const request = { input, init };
 
       const dispatch = async (
         index: number,
-        currentRequest: Request,
+        currentRequest: Input,
       ): Promise<ComposeInterceptorsResult<TInterceptors>> => {
         const interceptor = interceptors[index];
 
@@ -161,8 +200,13 @@ export const compose =
 
         return interceptor({
           request: currentRequest,
-          next: (nextRequest = currentRequest) =>
-            dispatch(index + 1, nextRequest),
+          next: (nextRequest?: Input | RequestInfo | URL, init?: RequestInit) =>
+            dispatch(
+              index + 1,
+              nextRequest === undefined
+                ? currentRequest
+                : normalizeInput(nextRequest, init),
+            ),
         }) as Promise<ComposeInterceptorsResult<TInterceptors>>;
       };
 
@@ -192,6 +236,45 @@ export const defineInterceptor = <
 >(
   interceptor: TInterceptor,
 ): TInterceptor => interceptor;
+
+/**
+ * Converts supported handler and `next` call forms into normalized `Input`.
+ *
+ * It accepts either an existing `{ input, init }` object or the platform
+ * fetch-style pair `(input, init?)`. Existing normalized values are returned as
+ * is so interceptors can pass request objects through without cloning.
+ *
+ * @example
+ * ```ts
+ * import { normalizeInput } from "@jamx/http";
+ *
+ * normalizeInput("https://example.com", {
+ *   headers: { accept: "application/json" },
+ * });
+ *
+ * normalizeInput({
+ *   input: new URL("https://example.com"),
+ *   init: { method: "POST" },
+ * });
+ * ```
+ */
+export function normalizeInput(
+  request: Input | RequestInfo | URL,
+  init?: RequestInit,
+): Input {
+  if (isInput(request)) return request;
+  return { input: request, init };
+}
+
+function isInput(request: Input | RequestInfo | URL): request is Input {
+  return (
+    typeof request === "object" &&
+    request !== null &&
+    "input" in request &&
+    !(request instanceof Request) &&
+    !(request instanceof URL)
+  );
+}
 
 function normalizeError(error: unknown): FetchError {
   if (error instanceof FetchError) {
