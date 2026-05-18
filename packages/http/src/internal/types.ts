@@ -1,3 +1,3 @@
-import { Either } from "./either.js";
+import type { Either } from "./either.js";
 
 export type AnyEither = Either<any, any>;

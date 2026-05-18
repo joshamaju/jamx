@@ -80,6 +80,7 @@ export interface ExecutableHandler<TResult extends AnyEither> {
  */
 export class FetchError extends Error {
   name = "FetchError";
+  readonly _tag = "FetchError";
 
   constructor(message = "Fetch request failed.", cause?: unknown) {
     super(message, { cause });
@@ -125,15 +126,15 @@ export const defaultFetch = createFetchHandler(defaultContext);
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withAuth, withTimeout } from "@jamx/http";
+ * import { compose, defaultFetch, withAuth, withTimeout } from "@jamx/http";
  *
- * const handler = composeInterceptors(
+ * const handler = compose(
  *   withTimeout(250),
  *   withAuth("demo-token"),
  * )(defaultFetch);
  * ```
  */
-export const composeInterceptors =
+export const compose =
   <const TInterceptors extends readonly AnyInterceptor[]>(
     ...interceptors: TInterceptors
   ) =>

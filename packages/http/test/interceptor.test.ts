@@ -1,7 +1,7 @@
 import { assert, describe, expect, it } from "vitest";
 
 import {
-  composeInterceptors,
+  compose,
   createFetchHandler,
   createMemoryCacheStore,
   defineInterceptor,
@@ -18,9 +18,7 @@ import {
 
 describe("request middleware", () => {
   it("rebases request urls onto a base url", async () => {
-    const handler = composeInterceptors(
-      withBaseUrl("https://api.example.com/v1"),
-    )(
+    const handler = compose(withBaseUrl("https://api.example.com/v1"))(
       createFetchHandler({
         fetch: async (input) => {
           const request = input instanceof Request ? input : new Request(input);
@@ -35,15 +33,15 @@ describe("request middleware", () => {
       }),
     );
 
-    const result = await handler("https://placeholder.test/users?role=admin#team");
+    const result = await handler(
+      "https://placeholder.test/users?role=admin#team",
+    );
 
     assert.equal(isOk(result), true);
   });
 
   it("adds request headers", async () => {
-    const handler = composeInterceptors(
-      withHeaders({ accept: "application/json" }),
-    )(
+    const handler = compose(withHeaders({ accept: "application/json" }))(
       createFetchHandler({
         fetch: async (input) => {
           const request = input instanceof Request ? input : new Request(input);
@@ -61,7 +59,7 @@ describe("request middleware", () => {
   });
 
   it("adds auth headers", async () => {
-    const handler = composeInterceptors(withAuth("demo-token"))(
+    const handler = compose(withAuth("demo-token"))(
       createFetchHandler({
         fetch: async (input) => {
           const request = input instanceof Request ? input : new Request(input);
@@ -91,7 +89,7 @@ describe("retry middleware", () => {
       return next();
     });
 
-    const handler = composeInterceptors(
+    const handler = compose(
       withRetry({ retries: 3 }),
       spy,
     )(
@@ -118,7 +116,7 @@ describe("retry middleware", () => {
   it("does not replay non-idempotent requests by default", async () => {
     let calls = 0;
 
-    const handler = composeInterceptors(withRetry({ retries: 2 }))(
+    const handler = compose(withRetry({ retries: 2 }))(
       createFetchHandler({
         fetch: async () => {
           calls += 1;
@@ -141,7 +139,7 @@ describe("cache middleware", () => {
     const store = createMemoryCacheStore();
     let calls = 0;
 
-    const handler = composeInterceptors(withCache({ store }))(
+    const handler = compose(withCache({ store }))(
       createFetchHandler({
         fetch: async () => {
           calls += 1;
@@ -159,17 +157,18 @@ describe("cache middleware", () => {
   });
 
   it("varies cache keys by request headers", async () => {
-    const store = createMemoryCacheStore();
     let calls = 0;
     let token = "first-token";
+    const store = createMemoryCacheStore();
 
-    const handler = composeInterceptors(
+    const handler = compose(
       withAuth(() => token),
       withCache({ store }),
     )(
       createFetchHandler({
         fetch: async (input) => {
           calls += 1;
+
           const request = input instanceof Request ? input : new Request(input);
 
           return new Response(request.headers.get("authorization"), {
@@ -180,7 +179,9 @@ describe("cache middleware", () => {
     );
 
     const first = await handler("https://example.com/users");
+
     token = "second-token";
+
     const second = await handler("https://example.com/users");
     const third = await handler("https://example.com/users");
 
@@ -188,21 +189,24 @@ describe("cache middleware", () => {
       isOk(first) && (await first.value.text()) === "Bearer first-token",
       true,
     );
+
     assert.equal(
       isOk(second) && (await second.value.text()) === "Bearer second-token",
       true,
     );
+
     assert.equal(
       isOk(third) && (await third.value.text()) === "Bearer second-token",
       true,
     );
+
     assert.equal(calls, 2);
   });
 });
 
 describe("timeout middleware", () => {
   it("aborts slow requests", async () => {
-    const handler = composeInterceptors(withTimeout(5))(
+    const handler = compose(withTimeout(5))(
       createFetchHandler({
         fetch: async (input) => {
           const request = input instanceof Request ? input : new Request(input);
@@ -217,6 +221,7 @@ describe("timeout middleware", () => {
     );
 
     const result = await handler("https://example.com/slow");
+
     assert.equal(isErr(result), true);
 
     if (!isErr(result)) {

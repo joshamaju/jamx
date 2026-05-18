@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import {
   chain,
-  composeInterceptors,
+  compose,
   createFetchHandler,
   defineInterceptor as defineCoreInterceptor,
   decodeJson,
@@ -41,17 +41,15 @@ interface User {
 const plainAnnotate = async ({ next }: Chain) => {
   const result = await next();
 
-  if (!result.ok) {
-    return result;
-  }
+  if (!result.ok) return result;
 
-  const payloadResult = await text(result.value);
+  const payload_result = await text(result.value);
 
-  if (!payloadResult.ok) {
-    return payloadResult;
-  }
+  if (!payload_result.ok) return payload_result;
 
-  return ok(new Response(payloadResult.value, { status: result.value.status }));
+  return ok(
+    new Response(payload_result.value, { status: result.value.status }),
+  );
 };
 
 const wrappedAnnotate = defineCoreInterceptor(async ({ next }) => {
@@ -75,17 +73,17 @@ const baseHandler = createFetchHandler({
     new Response(JSON.stringify({ id: 1, name: "Ada" }), { status: 200 }),
 });
 
-const plainHandler = composeInterceptors(plainAnnotate)(baseHandler);
-const wrappedHandler = composeInterceptors(wrappedAnnotate)(baseHandler);
+const plainHandler = compose(plainAnnotate)(baseHandler);
+const wrappedHandler = compose(wrappedAnnotate)(baseHandler);
 
 type PlainHandlerResult = Awaited<ReturnType<typeof plainHandler>>;
 type WrappedHandlerResult = Awaited<ReturnType<typeof wrappedHandler>>;
 
 describe("type inference", () => {
   it("exports the composed interceptor result type", () => {
-    expectTypeOf<ComposeInterceptorsResult<[typeof plainAnnotate]>>().toEqualTypeOf<
-      PlainHandlerResult
-    >();
+    expectTypeOf<
+      ComposeInterceptorsResult<[typeof plainAnnotate]>
+    >().toEqualTypeOf<PlainHandlerResult>();
   });
 
   it("keeps plain and wrapped core interceptors equivalent", () => {
@@ -200,20 +198,18 @@ describe("type inference", () => {
   });
 
   it("keeps composed handlers executable", () => {
-    const customInterceptorHandler = composeInterceptors(
-      async ({ next }: Chain) => {
-        const result = await next();
+    const customInterceptorHandler = compose(async ({ next }: Chain) => {
+      const result = await next();
 
-        return chain(result, (response) =>
-          ok(
-            new Response(response.body, {
-              status: response.status,
-              headers: response.headers,
-            }),
-          ),
-        );
-      },
-    )(baseHandler);
+      return chain(result, (response) =>
+        ok(
+          new Response(response.body, {
+            status: response.status,
+            headers: response.headers,
+          }),
+        ),
+      );
+    })(baseHandler);
 
     expectTypeOf(customInterceptorHandler).toMatchTypeOf<
       ExecutableHandler<Awaited<ReturnType<typeof customInterceptorHandler>>>
@@ -225,7 +221,7 @@ describe("type inference", () => {
   });
 
   it("preserves timeout-specific errors", () => {
-    const timeoutHandler = composeInterceptors(withTimeout(5))(baseHandler);
+    const timeoutHandler = compose(withTimeout(5))(baseHandler);
 
     expectTypeOf<TimeoutError>().toMatchTypeOf<
       FailureOf<Awaited<ReturnType<typeof timeoutHandler>>>

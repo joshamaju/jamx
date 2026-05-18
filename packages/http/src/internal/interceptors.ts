@@ -1,6 +1,6 @@
-import { defineInterceptor, FetchError, Result } from "./core.js";
-import { isErr, isOk, ok } from "./either.js";
+import { defineInterceptor, type Result } from "./core.js";
 import type { Left } from "./either.js";
+import { isErr, isOk, ok } from "./either.js";
 
 /**
  * Rebases a request URL onto a configured base URL while preserving the
@@ -8,25 +8,24 @@ import type { Left } from "./either.js";
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withBaseUrl } from "@jamx/http";
+ * import { compose, defaultFetch, withBaseUrl } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(
- *   withBaseUrl("https://api.example.com/v1"),
- * )(defaultFetch);
+ * const fetcher = compose(withBaseUrl("https://api.example.com/v1"))(defaultFetch);
  * ```
  */
-export const withBaseUrl = (baseUrl: string | URL) =>
-  defineInterceptor(async ({ request, next }) => {
-    const currentUrl = new URL(request.url);
+export function withBaseUrl(base_url: string | URL) {
+  return defineInterceptor(async ({ request, next }) => {
+    const current_url = new URL(request.url);
 
     const url = new URL(
-      `${trimTrailingSlash(baseUrl.toString())}/${trimLeadingSlash(
-        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+      `${trimTrailingSlash(base_url.toString())}/${trimLeadingSlash(
+        `${current_url.pathname}${current_url.search}${current_url.hash}`,
       )}`,
     );
 
     return next(new Request(url, request));
   });
+}
 
 /**
  * Merges additional headers into the outgoing request.
@@ -40,20 +39,21 @@ export const withBaseUrl = (baseUrl: string | URL) =>
  * )(defaultFetch);
  * ```
  */
-export const withHeaders = (
+export function withHeaders(
   headers: HeadersInit | ((request: Request) => HeadersInit),
-) =>
-  defineInterceptor(async ({ request, next }) => {
-    const nextHeaders = new Headers(request.headers);
-    const extraHeaders =
+) {
+  return defineInterceptor(async ({ request, next }) => {
+    const next_headers = new Headers(request.headers);
+    const extra_headers =
       typeof headers === "function" ? headers(request) : headers;
 
-    new Headers(extraHeaders).forEach((value, key) => {
-      nextHeaders.set(key, value);
+    new Headers(extra_headers).forEach((value, key) => {
+      next_headers.set(key, value);
     });
 
-    return next(new Request(request, { headers: nextHeaders }));
+    return next(new Request(request, { headers: next_headers }));
   });
+}
 
 /**
  * Adds an `Authorization` header using the given token and scheme.
@@ -65,16 +65,17 @@ export const withHeaders = (
  * const fetcher = composeInterceptors(withAuth("demo-token"))(defaultFetch);
  * ```
  */
-export const withAuth = (
+export function withAuth(
   token: string | ((request: Request) => string),
   scheme = "Bearer",
-) =>
-  defineInterceptor(async ({ request, next }) => {
+) {
+  return defineInterceptor(async ({ request, next }) => {
     const resolvedToken = typeof token === "function" ? token(request) : token;
     const headers = new Headers(request.headers);
     headers.set("authorization", `${scheme} ${resolvedToken}`);
     return next(new Request(request, { headers }));
   });
+}
 
 /**
  * Aborts requests that take longer than the given timeout.
@@ -86,12 +87,14 @@ export const withAuth = (
  * const fetcher = composeInterceptors(withTimeout(500))(defaultFetch);
  * ```
  */
-export class TimeoutError extends FetchError {
+export class TimeoutError extends Error {
   name = "TimeoutError";
+  readonly _tag = "FetchError";
+
   readonly timeoutMs: number;
 
   constructor(timeoutMs: number, cause?: unknown) {
-    super(`Fetch request timed out after ${timeoutMs}ms.`, cause);
+    super(`Fetch request timed out after ${timeoutMs}ms.`, { cause });
     this.timeoutMs = timeoutMs;
   }
 }
@@ -101,21 +104,18 @@ export const withTimeout = (timeoutMs: number) =>
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-    const timedRequest = new Request(request, {
+    const timed_request = new Request(request, {
       signal: mergeSignals(request.signal, controller.signal),
     });
 
     try {
       return await Promise.race([
-        next(timedRequest),
+        next(timed_request),
         new Promise<Left<TimeoutError>>((resolve) => {
-          timedRequest.signal.addEventListener(
+          timed_request.signal.addEventListener(
             "abort",
             () => {
-              resolve({
-                ok: false,
-                error: new TimeoutError(timeoutMs),
-              });
+              resolve({ ok: false, error: new TimeoutError(timeoutMs) });
             },
             { once: true },
           );
@@ -126,13 +126,11 @@ export const withTimeout = (timeoutMs: number) =>
     }
   });
 
-const mergeSignals = (
+function mergeSignals(
   left: AbortSignal | null,
   right: AbortSignal,
-): AbortSignal => {
-  if (!left) {
-    return right;
-  }
+): AbortSignal {
+  if (!left) return right;
 
   const anySignal = AbortSignal;
 
@@ -152,16 +150,6 @@ const mergeSignals = (
   right.addEventListener("abort", abort, { once: true });
 
   return controller.signal;
-};
-
-export interface RetryOptions {
-  retries: number;
-  methods?: readonly string[];
-  shouldRetry?: (
-    result: Result,
-    attempt: number,
-    request: Request,
-  ) => boolean | Promise<boolean>;
 }
 
 /**
@@ -175,33 +163,42 @@ export interface RetryOptions {
  * const fetcher = composeInterceptors(withRetry({ retries: 2 }))(defaultFetch);
  * ```
  */
-export const withRetry = (options: RetryOptions) =>
-  defineInterceptor(async ({ request, next }) => {
-    for (let attempt = 0; attempt <= options.retries; attempt += 1) {
-      const attemptRequest = new Request(request);
-      const result = await next(attemptRequest);
+export interface RetryOptions {
+  retries: number;
+  methods?: readonly string[];
+  shouldRetry?: (
+    result: Result,
+    attempt: number,
+    request: Request,
+  ) => boolean | Promise<boolean>;
+}
 
-      const shouldRetry = await shouldRetryResult(
+export function withRetry(options: RetryOptions) {
+  return defineInterceptor(async ({ request, next }) => {
+    for (let attempt = 0; attempt <= options.retries; attempt += 1) {
+      const attempt_request = new Request(request);
+      const result = await next(attempt_request);
+
+      const should_retry = await shouldRetryResult(
         result,
         attempt,
         request,
         options,
       );
 
-      if (!shouldRetry) {
-        return result;
-      }
+      if (!should_retry) return result;
     }
 
     return next(new Request(request));
   });
+}
 
-const shouldRetryResult = async (
+async function shouldRetryResult(
   result: Result,
   attempt: number,
   request: Request,
   options: RetryOptions,
-): Promise<boolean> => {
+): Promise<boolean> {
   if (attempt >= options.retries) {
     return false;
   }
@@ -215,17 +212,6 @@ const shouldRetryResult = async (
   }
 
   return isErr(result) || (isOk(result) && result.value.status >= 500);
-};
-
-export interface CacheStore {
-  get(key: string): Response | undefined | Promise<Response | undefined>;
-  set(key: string, response: Response): void | Promise<void>;
-}
-
-export interface CacheOptions {
-  store?: CacheStore;
-  key?: (request: Request) => string;
-  shouldCache?: (result: Result, request: Request) => boolean;
 }
 
 /**
@@ -239,7 +225,18 @@ export interface CacheOptions {
  * const fetcher = composeInterceptors(withCache({ store }))(defaultFetch);
  * ```
  */
-export const withCache = (options: CacheOptions = {}) => {
+export interface CacheStore {
+  get(key: string): Response | undefined | Promise<Response | undefined>;
+  set(key: string, response: Response): void | Promise<void>;
+}
+
+export interface CacheOptions {
+  store?: CacheStore;
+  key?: (request: Request) => string;
+  shouldCache?: (result: Result, request: Request) => boolean;
+}
+
+export function withCache(options: CacheOptions = {}) {
   const store = options.store ?? createMemoryCacheStore();
 
   return defineInterceptor(async ({ request, next }) => {
@@ -247,10 +244,7 @@ export const withCache = (options: CacheOptions = {}) => {
 
     if (request.method === "GET") {
       const cached = await store.get(key);
-
-      if (cached) {
-        return ok(cached.clone());
-      }
+      if (cached) return ok(cached.clone());
     }
 
     const result = await next(new Request(request));
@@ -265,7 +259,7 @@ export const withCache = (options: CacheOptions = {}) => {
 
     return result;
   });
-};
+}
 
 /**
  * Creates an in-memory cache store compatible with `withCache`.
@@ -277,7 +271,7 @@ export const withCache = (options: CacheOptions = {}) => {
  * const store = createMemoryCacheStore();
  * ```
  */
-export const createMemoryCacheStore = (): CacheStore => {
+export function createMemoryCacheStore(): CacheStore {
   const store = new Map<string, Response>();
 
   return {
@@ -289,21 +283,23 @@ export const createMemoryCacheStore = (): CacheStore => {
       store.set(key, response.clone());
     },
   };
+}
+
+const defaultShouldCache = (result: Result): boolean => {
+  return isOk(result) && result.value.ok;
 };
 
-const defaultShouldCache = (result: Result): boolean =>
-  isOk(result) && result.value.ok;
-
-const defaultCacheKey = (request: Request): string =>
-  `${request.method}:${request.url}:${serializeHeaders(request.headers)}`;
+const defaultCacheKey = (request: Request): string => {
+  return `${request.method}:${request.url}:${serializeHeaders(request.headers)}`;
+};
 
 const DEFAULT_RETRY_METHODS = new Set([
-  "DELETE",
   "GET",
-  "HEAD",
-  "OPTIONS",
   "PUT",
+  "HEAD",
   "TRACE",
+  "DELETE",
+  "OPTIONS",
 ]);
 
 const isRetryableMethod = (
