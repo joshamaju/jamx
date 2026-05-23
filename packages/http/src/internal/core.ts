@@ -16,7 +16,7 @@ export interface Context {
  * ```
  */
 export const defaultContext: Context = {
-  fetch: globalThis.fetch,
+  fetch: (input, init) => globalThis.fetch(input, init),
 };
 
 /**
