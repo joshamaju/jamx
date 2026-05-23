@@ -24,7 +24,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install
+        run: npx playwright install --with-deps
 
       - name: Run build
         run: pnpm build
