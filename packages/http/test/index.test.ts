@@ -18,8 +18,30 @@ import {
 } from "../src/index.js";
 
 describe("createFetchHandler", () => {
-  it("exports a default context backed by global fetch", () => {
-    assert.equal(defaultContext.fetch, globalThis.fetch);
+  it("exports a default context backed by global fetch", async () => {
+    const originalFetch = globalThis.fetch;
+    const expectedResponse = new Response(null, { status: 204 });
+
+    try {
+      globalThis.fetch = function (
+        this: typeof globalThis,
+        input: RequestInfo | URL,
+        init?: RequestInit,
+      ) {
+        assert.equal(this, globalThis);
+        assert.equal(input, "https://example.com/users");
+        assert.equal(init?.method, "POST");
+        return Promise.resolve(expectedResponse);
+      };
+
+      const response = await defaultContext.fetch("https://example.com/users", {
+        method: "POST",
+      });
+
+      assert.equal(response, expectedResponse);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("exports a default fetch handler backed by the default context", async () => {
