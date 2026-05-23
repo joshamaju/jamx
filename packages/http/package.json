@@ -1,6 +1,6 @@
 {
   "name": "@jamx/http",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Composable fetch helpers with interceptors, decoders, validators, and Railway-style results.",
   "type": "module",
   "private": false,
