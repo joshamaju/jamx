@@ -22,13 +22,14 @@
     "build": "tsc",
     "dev": "tsc --w",
     "test": "vitest run",
+    "test:browser": "vitest",
     "prepublish": "pnpm build",
     "prepack": "pnpm run build",
     "typecheck": "tsc --noEmit",
     "version": "changeset version",
     "release": "changeset publish",
     "example": "tsx ./example/index.ts",
-    "test:browser": "vitest"
+    "postinstall": "pnpm exec playwright install"
   },
   "keywords": [
     "fetch",
