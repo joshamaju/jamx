@@ -40,6 +40,84 @@ describe("request middleware", () => {
     assert.equal(isOk(result), true);
   });
 
+  it("adds request urls onto a base url", async () => {
+    const handler = compose(withBaseUrl("https://api.example.com/v1"))(
+      createFetchHandler({
+        fetch: async (input) => {
+          const { url } = input instanceof Request ? input : new Request(input);
+          assert.equal(url, "https://api.example.com/v1/users?role=admin#team");
+          return new Response(null, { status: 200 });
+        },
+      }),
+    );
+
+    const result = await handler("/users?role=admin#team");
+
+    assert.equal(isOk(result), true);
+  });
+
+  it("lets interceptors pass fetch-style input to next", async () => {
+    const handler = compose(
+      defineInterceptor(async ({ next }) =>
+        next("https://api.example.com/users", {
+          headers: { accept: "application/json" },
+        }),
+      ),
+    )(
+      createFetchHandler({
+        fetch: async (input) => {
+          const request = input instanceof Request ? input : new Request(input);
+
+          assert.equal(request.url, "https://api.example.com/users");
+          assert.equal(request.headers.get("accept"), "application/json");
+
+          return new Response(null, { status: 200 });
+        },
+      }),
+    );
+
+    const result = await handler("https://placeholder.test");
+
+    assert.equal(isOk(result), true);
+  });
+
+  it("lets interceptors pass fetch-style Request to next", async () => {
+    const handler = compose(
+      defineInterceptor(async ({ next, request }) => {
+        const url = request.input.toString();
+
+        return next(
+          new Request("https://api.example.com" + url, {
+            headers: { accept: "application/json" },
+          }),
+        );
+      }),
+      defineInterceptor(async ({ next, request }) => {
+        const { input } = request;
+        const url = input instanceof Request ? input.url : input.toString();
+
+        expect(new URL(url).href).toBe("https://api.example.com/users");
+
+        return next();
+      }),
+    )(
+      createFetchHandler({
+        fetch: async (input) => {
+          const request = input instanceof Request ? input : new Request(input);
+
+          assert.equal(request.url, "https://api.example.com/users");
+          assert.equal(request.headers.get("accept"), "application/json");
+
+          return new Response(null, { status: 200 });
+        },
+      }),
+    );
+
+    const result = await handler("/users");
+
+    assert.equal(isOk(result), true);
+  });
+
   it("adds request headers", async () => {
     const handler = compose(withHeaders({ accept: "application/json" }))(
       createFetchHandler({

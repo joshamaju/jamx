@@ -13,10 +13,11 @@ pnpm add @jamx/http
 
 ```ts
 import {
-  composeInterceptors,
+  compose,
   createMemoryCacheStore,
   defaultFetch,
   withAuth,
+  withBaseUrl,
   withCache,
   withHeaders,
   withRetry,
@@ -25,14 +26,16 @@ import {
 
 const cache = createMemoryCacheStore();
 
-const handler = composeInterceptors(
+const handler = compose(
   withTimeout(250),
+  withBaseUrl("https://api.example.com/v1"),
   withHeaders({ accept: "application/json" }),
   withAuth("demo-token"),
-  withJsonBody({ tenant: "team-a" }),
   withCache({ store: cache }),
   withRetry({ retries: 1 }),
 )(defaultFetch);
+
+const response = await handler("/users/42");
 ```
 
 ## Core APIs
@@ -44,6 +47,7 @@ import {
   defaultContext,
   defaultFetch,
   expectStatus,
+  normalizeInput,
 } from "@jamx/http";
 
 const customFetch = createFetchHandler(defaultContext);
@@ -56,7 +60,71 @@ const user = await decodeJson(expectStatus(response, 200), decodeUser);
 - `defaultFetch` is `createFetchHandler(defaultContext)`.
 - `createFetchHandler(...)` is useful when you want to inject a mocked or custom
   fetch implementation.
-- `composeInterceptors(...)` returns an executable handler with a composed result.
+- `compose(...)` returns an executable handler with a composed result.
+- `normalizeInput(...)` converts either `{ input, init }` or fetch-style
+  `(input, init?)` into the normalized request shape used by interceptors.
+
+## Interceptors
+
+Interceptors receive a grouped request object and a `next` function.
+
+```ts
+import { compose, defaultFetch, defineInterceptor } from "@jamx/http";
+
+const withTenant = defineInterceptor(async ({ request, next }) => {
+  const headers = new Headers(request.init?.headers);
+  headers.set("x-tenant", "team-a");
+
+  return next({
+    input: request.input,
+    init: { ...request.init, headers },
+  });
+});
+
+const handler = compose(withTenant)(defaultFetch);
+```
+
+The request shape mirrors `fetch(input, init?)`:
+
+```ts
+type Input = {
+  input: RequestInfo | URL;
+  init?: RequestInit;
+};
+```
+
+`next` accepts all of these forms:
+
+```ts
+await next();
+await next({ input: "https://api.example.com/users" });
+await next("https://api.example.com/users");
+await next("https://api.example.com/users", {
+  headers: { accept: "application/json" },
+});
+```
+
+`compose` keeps requests in this normalized shape until the terminal fetch
+handler runs. That allows `withBaseUrl` to resolve relative paths before a
+platform `Request` is constructed:
+
+```ts
+const api = compose(withBaseUrl("https://api.example.com/v1"))(defaultFetch);
+
+await api("/users?role=admin");
+```
+
+Use `normalizeInput` when a helper accepts either normalized input or fetch-style
+arguments:
+
+```ts
+const normalized = normalizeInput("https://api.example.com/users", {
+  method: "POST",
+});
+
+normalized.input;
+normalized.init;
+```
 
 ## Decoder Helpers
 
@@ -83,6 +151,9 @@ result type.
 - `withBaseUrl` rebases request paths onto a configured base URL.
 - Put request-shaping interceptors like `withHeaders` and `withAuth` before
   `withCache` so cache keys can include the final request headers.
+- Static `withHeaders(...)` and `withAuth(...)` values can run before or after
+  `withBaseUrl`. Callback forms that receive a concrete `Request` should run
+  after `withBaseUrl` when the original input may be relative.
 - `withRetry` only retries idempotent methods by default. Pass
   `methods: ["POST"]` if you need to opt a write request into replay.
 - `validate(result, schema)` accepts an `Either` plus a Standard Schema

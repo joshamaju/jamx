@@ -1,4 +1,4 @@
-import { defineInterceptor, type Result } from "./core.js";
+import { defineInterceptor, type Input, type Result } from "./core.js";
 import type { Left } from "./either.js";
 import { isErr, isOk, ok } from "./either.js";
 
@@ -15,7 +15,8 @@ import { isErr, isOk, ok } from "./either.js";
  */
 export function withBaseUrl(base_url: string | URL) {
   return defineInterceptor(async ({ request, next }) => {
-    const current_url = new URL(request.url);
+    const { input, init } = request;
+    const current_url = getUrl(input, base_url);
 
     const url = new URL(
       `${trimTrailingSlash(base_url.toString())}/${trimLeadingSlash(
@@ -23,7 +24,10 @@ export function withBaseUrl(base_url: string | URL) {
       )}`,
     );
 
-    return next(new Request(url, request));
+    return next({
+      input: input instanceof Request ? new Request(url, input) : url,
+      init,
+    });
   });
 }
 
@@ -32,9 +36,9 @@ export function withBaseUrl(base_url: string | URL) {
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withHeaders } from "@jamx/http";
+ * import { compose, defaultFetch, withHeaders } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(
+ * const fetcher = compose(
  *   withHeaders({ accept: "application/json" }),
  * )(defaultFetch);
  * ```
@@ -43,15 +47,21 @@ export function withHeaders(
   headers: HeadersInit | ((request: Request) => HeadersInit),
 ) {
   return defineInterceptor(async ({ request, next }) => {
-    const next_headers = new Headers(request.headers);
+    const { input, init } = request;
+    const next_headers = getHeaders(input, init);
     const extra_headers =
-      typeof headers === "function" ? headers(request) : headers;
+      typeof headers === "function"
+        ? headers(new Request(input, init))
+        : headers;
 
     new Headers(extra_headers).forEach((value, key) => {
       next_headers.set(key, value);
     });
 
-    return next(new Request(request, { headers: next_headers }));
+    return next({
+      input,
+      init: { ...init, headers: next_headers },
+    });
   });
 }
 
@@ -60,9 +70,9 @@ export function withHeaders(
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withAuth } from "@jamx/http";
+ * import { compose, defaultFetch, withAuth } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(withAuth("demo-token"))(defaultFetch);
+ * const fetcher = compose(withAuth("demo-token"))(defaultFetch);
  * ```
  */
 export function withAuth(
@@ -70,10 +80,12 @@ export function withAuth(
   scheme = "Bearer",
 ) {
   return defineInterceptor(async ({ request, next }) => {
-    const resolvedToken = typeof token === "function" ? token(request) : token;
-    const headers = new Headers(request.headers);
+    const { input, init } = request;
+    const resolvedToken =
+      typeof token === "function" ? token(new Request(input, init)) : token;
+    const headers = getHeaders(input, init);
     headers.set("authorization", `${scheme} ${resolvedToken}`);
-    return next(new Request(request, { headers }));
+    return next({ input, init: { ...init, headers } });
   });
 }
 
@@ -82,9 +94,9 @@ export function withAuth(
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withTimeout } from "@jamx/http";
+ * import { compose, defaultFetch, withTimeout } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(withTimeout(500))(defaultFetch);
+ * const fetcher = compose(withTimeout(500))(defaultFetch);
  * ```
  */
 export class TimeoutError extends Error {
@@ -101,18 +113,21 @@ export class TimeoutError extends Error {
 
 export const withTimeout = (timeoutMs: number) =>
   defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = mergeSignals(getSignal(input, init), controller.signal);
 
-    const timed_request = new Request(request, {
-      signal: mergeSignals(request.signal, controller.signal),
-    });
+    const timed_request = {
+      input,
+      init: { ...init, signal },
+    };
 
     try {
       return await Promise.race([
         next(timed_request),
         new Promise<Left<TimeoutError>>((resolve) => {
-          timed_request.signal.addEventListener(
+          signal.addEventListener(
             "abort",
             () => {
               resolve({ ok: false, error: new TimeoutError(timeoutMs) });
@@ -158,9 +173,9 @@ function mergeSignals(
  *
  * @example
  * ```ts
- * import { composeInterceptors, defaultFetch, withRetry } from "@jamx/http";
+ * import { compose, defaultFetch, withRetry } from "@jamx/http";
  *
- * const fetcher = composeInterceptors(withRetry({ retries: 2 }))(defaultFetch);
+ * const fetcher = compose(withRetry({ retries: 2 }))(defaultFetch);
  * ```
  */
 export interface RetryOptions {
@@ -169,14 +184,14 @@ export interface RetryOptions {
   shouldRetry?: (
     result: Result,
     attempt: number,
-    request: Request,
+    request: Input,
   ) => boolean | Promise<boolean>;
 }
 
 export function withRetry(options: RetryOptions) {
   return defineInterceptor(async ({ request, next }) => {
     for (let attempt = 0; attempt <= options.retries; attempt += 1) {
-      const attempt_request = new Request(request);
+      const attempt_request = cloneInput(request);
       const result = await next(attempt_request);
 
       const should_retry = await shouldRetryResult(
@@ -189,21 +204,23 @@ export function withRetry(options: RetryOptions) {
       if (!should_retry) return result;
     }
 
-    return next(new Request(request));
+    return next(cloneInput(request));
   });
 }
 
 async function shouldRetryResult(
   result: Result,
   attempt: number,
-  request: Request,
+  request: Input,
   options: RetryOptions,
 ): Promise<boolean> {
   if (attempt >= options.retries) {
     return false;
   }
 
-  if (!isRetryableMethod(request.method, options.methods)) {
+  if (
+    !isRetryableMethod(getMethod(request.input, request.init), options.methods)
+  ) {
     return false;
   }
 
@@ -219,10 +236,10 @@ async function shouldRetryResult(
  *
  * @example
  * ```ts
- * import { composeInterceptors, createMemoryCacheStore, defaultFetch, withCache } from "@jamx/http";
+ * import { compose, createMemoryCacheStore, defaultFetch, withCache } from "@jamx/http";
  *
  * const store = createMemoryCacheStore();
- * const fetcher = composeInterceptors(withCache({ store }))(defaultFetch);
+ * const fetcher = compose(withCache({ store }))(defaultFetch);
  * ```
  */
 export interface CacheStore {
@@ -232,25 +249,26 @@ export interface CacheStore {
 
 export interface CacheOptions {
   store?: CacheStore;
-  key?: (request: Request) => string;
-  shouldCache?: (result: Result, request: Request) => boolean;
+  key?: (request: Input) => string;
+  shouldCache?: (result: Result, request: Input) => boolean;
 }
 
 export function withCache(options: CacheOptions = {}) {
   const store = options.store ?? createMemoryCacheStore();
 
   return defineInterceptor(async ({ request, next }) => {
+    const { input, init } = request;
     const key = (options.key ?? defaultCacheKey)(request);
 
-    if (request.method === "GET") {
+    if (getMethod(input, init) === "GET") {
       const cached = await store.get(key);
       if (cached) return ok(cached.clone());
     }
 
-    const result = await next(new Request(request));
+    const result = await next(cloneInput(request));
 
     if (
-      request.method === "GET" &&
+      getMethod(input, init) === "GET" &&
       isOk(result) &&
       (options.shouldCache ?? defaultShouldCache)(result, request)
     ) {
@@ -289,8 +307,10 @@ const defaultShouldCache = (result: Result): boolean => {
   return isOk(result) && result.value.ok;
 };
 
-const defaultCacheKey = (request: Request): string => {
-  return `${request.method}:${request.url}:${serializeHeaders(request.headers)}`;
+const defaultCacheKey = (request: Input): string => {
+  return `${getMethod(request.input, request.init)}:${
+    getUrl(request.input).href
+  }:${serializeHeaders(getHeaders(request.input, request.init))}`;
 };
 
 const DEFAULT_RETRY_METHODS = new Set([
@@ -330,3 +350,46 @@ const serializeHeaders = (headers: Headers): string => {
 const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, "");
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
+
+const getUrl = (input: RequestInfo | URL, base?: string | URL): URL => {
+  if (input instanceof Request) {
+    return new URL(input.url);
+  }
+
+  return new URL(input, base);
+};
+
+const getHeaders = (input: RequestInfo | URL, init?: RequestInit): Headers => {
+  const headers = new Headers(
+    input instanceof Request ? input.headers : init?.headers,
+  );
+
+  if (input instanceof Request && init?.headers) {
+    new Headers(init.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  return headers;
+};
+
+const getSignal = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): AbortSignal | null => {
+  return init?.signal ?? (input instanceof Request ? input.signal : null);
+};
+
+const getMethod = (input: RequestInfo | URL, init?: RequestInit): string => {
+  return (
+    init?.method ?? (input instanceof Request ? input.method : "GET")
+  ).toUpperCase();
+};
+
+const cloneInput = (request: Input): Input => {
+  return {
+    input:
+      request.input instanceof Request ? request.input.clone() : request.input,
+    init: request.init,
+  };
+};
