@@ -41,7 +41,16 @@
     "typecheck": "tsc --noEmit",
     "version": "changeset version",
     "release": "changeset publish",
-    "dev": "tsx ./example/index.ts"
+    "dev": "tsx ./example/basic.ts",
+    "example:basic": "tsx ./example/basic.ts",
+    "example:structured": "tsx ./example/structured.ts",
+    "example:context": "tsx ./example/context.ts",
+    "example:processor": "tsx ./example/processor.ts",
+    "example:memory": "tsx ./example/memory.ts",
+    "example:composite": "tsx ./example/composite-transport.ts",
+    "example:formatter": "tsx ./example/custom-formatter.ts",
+    "example:line": "tsx ./example/line-console.ts",
+    "typecheck:examples": "tsc --noEmit --module nodenext --moduleResolution nodenext --target ES2020 --strict --noUnusedLocals --noUnusedParameters --esModuleInterop --skipLibCheck example/*.ts"
   },
   "keywords": [
     "logger",
