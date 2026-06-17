@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  createContextLogger,
+  createChildLogger,
+  createCoreLogger,
   createLogger,
   createNamedLogger,
   MemoryTransport,
@@ -34,7 +35,7 @@ describe("Logger", () => {
     });
   });
 
-  it("composes metadata through context wrappers and named helper", () => {
+  it("composes metadata through child loggers and named helper", () => {
     const transport = new MemoryTransport();
 
     const logger = createNamedLogger({
@@ -43,9 +44,8 @@ describe("Logger", () => {
       transport,
     });
 
-    const scoped = createContextLogger(logger, { requestId: "req_42" }).child({
-      jobId: "job_7",
-    });
+    const requestLogger = createChildLogger(logger, { requestId: "req_42" });
+    const scoped = createChildLogger(requestLogger, { jobId: "job_7" });
 
     scoped.info("retrying");
 
@@ -62,7 +62,7 @@ describe("Logger", () => {
     const transport = new MemoryTransport();
     const timestamp = new Date("2026-03-03T11:12:35.123Z");
 
-    const logger = createLogger({
+    const logger = createCoreLogger({
       clock: () => timestamp,
       meta: { service: "api" },
       transport,
@@ -108,7 +108,7 @@ describe("Logger", () => {
     const transport = new MemoryTransport();
     let processed = 0;
 
-    const logger = createLogger({
+    const logger = createCoreLogger({
       minSeverity: Severity.Warn,
       transport,
       processor: {

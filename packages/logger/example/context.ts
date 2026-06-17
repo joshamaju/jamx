@@ -1,6 +1,6 @@
 import {
   ConsoleTransport,
-  createContextLogger,
+  createChildLogger,
   createNamedLogger,
   PrettyFormatter,
   Severity,
@@ -13,11 +13,13 @@ const logger = createNamedLogger({
   transport: new ConsoleTransport(new PrettyFormatter({ colorize: true })),
 });
 
-const requestLogger = createContextLogger(logger, {
+const requestLogger = createChildLogger(logger, {
   requestId: "req_42",
-}).child({
+});
+
+const jobLogger = createChildLogger(requestLogger, {
   jobId: "job_7",
 });
 
-requestLogger.info("Job started");
-requestLogger.warn("Job retry scheduled", { attempt: 2 });
+jobLogger.info("Job started");
+jobLogger.warn("Job retry scheduled", { attempt: 2 });

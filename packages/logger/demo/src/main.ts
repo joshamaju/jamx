@@ -10,7 +10,7 @@ import { WebSocket, WebSocketServer } from "ws";
 
 import {
   ConsoleTransport,
-  ContextLogger,
+  CoreLogger,
   Logger,
   PrettyFormatter,
   Severity,
@@ -34,15 +34,15 @@ class OutboundTransport implements Transport {
   }
 }
 
-const out_logger = new ContextLogger(
-  new Logger({
+const out_logger = new Logger(
+  new CoreLogger({
     transport: new OutboundTransport(),
     minSeverity: Severity.Trace,
   }),
 );
 
-const in_logger = new ContextLogger(
-  new Logger({
+const in_logger = new Logger(
+  new CoreLogger({
     transport: new ConsoleTransport(new PrettyFormatter({ colorize: true })),
     minSeverity: Severity.Trace,
   }),

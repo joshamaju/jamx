@@ -1,7 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import {
   CompositeTransport,
-  ContextLogger,
+  CoreLogger,
   Logger,
   type LogRecord,
   PrettyFormatter,
@@ -79,12 +79,12 @@ class XTermTransport implements Transport {
   }
 }
 
-const out_logger = new ContextLogger(
-  new Logger({ transport: new WSTransport(), minSeverity: Severity.Trace }),
+const out_logger = new Logger(
+  new CoreLogger({ transport: new WSTransport(), minSeverity: Severity.Trace }),
 );
 
-const logger = new ContextLogger(
-  new Logger({
+const logger = new Logger(
+  new CoreLogger({
     minSeverity: Severity.Trace,
     transport: new CompositeTransport([
       //   new ConsoleTransport(new TextFormatter()),

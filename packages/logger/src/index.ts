@@ -1,6 +1,6 @@
 export * from "./internal/core.js";
+export * from "./internal/core-logger.js";
 export * from "./internal/logger.js";
-export * from "./internal/context-logger.js";
 export * from "./internal/formatters/json.js";
 export * from "./internal/formatters/pretty.js";
 export * from "./internal/formatters/text.js";

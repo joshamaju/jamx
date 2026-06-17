@@ -1,79 +1,89 @@
-import { assertMeta, DEFAULT_CLOCK, getSeverityName } from "./shared.js";
-import {
-  Transport,
-  Severity,
-  LogMeta,
-  LogRecord,
-  ILogger,
-  Processor,
-} from "./core.js";
-import { LoggerOptions } from "./types.js";
+import { ILogger, LogMeta, Processor, Severity, Transport } from "./core.js";
+import { LoggerOptions, NamedLoggerOptions } from "./types.js";
+import { createCoreLogger } from "./core-logger.js";
+import { assertMeta } from "./shared.js";
 
 export class Logger implements ILogger {
-  private _transport: Transport;
-  private _processor?: Processor;
-  private readonly meta: LogMeta;
-  private readonly clock: () => Date;
-  private readonly minSeverity: Severity;
-
-  constructor({
-    transport,
-    meta = {},
-    processor,
-    clock = DEFAULT_CLOCK,
-    minSeverity = Severity.Info,
-  }: LoggerOptions) {
+  constructor(
+    private readonly logger: ILogger,
+    private readonly meta: LogMeta = {},
+  ) {
     assertMeta(meta, "Logger base metadata");
-    this.clock = clock;
-    this.meta = { ...meta };
-    this._processor = processor;
-    this._transport = transport;
-    this.minSeverity = minSeverity;
   }
 
   get transport(): Transport {
-    return this._transport;
+    return this.logger.transport;
   }
 
   set transport(transport: Transport) {
-    this._transport = transport;
+    this.logger.transport = transport;
   }
 
   get processor(): Processor | undefined {
-    return this._processor;
+    return this.logger.processor;
   }
 
   set processor(processor: Processor | undefined) {
-    this._processor = processor;
+    this.logger.processor = processor;
   }
 
   log(severity: Severity, message: string, meta: LogMeta = {}): void {
-    if (!this.shouldLog(severity)) {
-      return;
-    }
-
     assertMeta(meta, "Logger metadata");
-
-    const record: LogRecord = {
-      message,
-      severity,
-      timestamp: this.clock(),
-      meta: { ...this.meta, ...meta },
-      severityName: getSeverityName(severity),
-    };
-
-    const processed_record = this._processor
-      ? this._processor.process(record)
-      : record;
-
-    this._transport.capture(processed_record);
+    this.logger.log(severity, message, { ...this.meta, ...meta });
   }
 
-  private shouldLog(severity: Severity): boolean {
-    return severity >= this.minSeverity;
+  silly(message: string, meta?: LogMeta): void {
+    this.log(Severity.Silly, message, meta);
+  }
+
+  trace(message: string, meta?: LogMeta): void {
+    this.log(Severity.Trace, message, meta);
+  }
+
+  debug(message: string, meta?: LogMeta): void {
+    this.log(Severity.Debug, message, meta);
+  }
+
+  info(message: string, meta?: LogMeta): void {
+    this.log(Severity.Info, message, meta);
+  }
+
+  warn(message: string, meta?: LogMeta): void {
+    this.log(Severity.Warn, message, meta);
+  }
+
+  error(message: string, meta?: LogMeta): void {
+    this.log(Severity.Error, message, meta);
+  }
+
+  fatal(message: string, meta?: LogMeta): void {
+    this.log(Severity.Fatal, message, meta);
   }
 }
 
+export function createLoggerFacade(
+  logger: ILogger,
+  meta: LogMeta = {},
+): Logger {
+  return new Logger(logger, meta);
+}
+
+export function createChildLogger(logger: ILogger, meta: LogMeta): Logger {
+  assertMeta(meta, "Child logger metadata");
+  return new Logger(logger, meta);
+}
+
 export function createLogger(options: LoggerOptions): Logger {
-  return new Logger(options);
+  return createLoggerFacade(createCoreLogger(options));
+}
+
+export function createNamedLogger({
+  name,
+  meta = {},
+  ...options
+}: NamedLoggerOptions): Logger {
+  return createLoggerFacade(createCoreLogger(options), {
+    ...meta,
+    logger: name,
+  });
 }

@@ -1,50 +1,11 @@
 # `@jamx/logger`
 
-Composable logging primitives for TypeScript and Node.js.
+Composable structured logging primitives for TypeScript and Node.js.
 
-## Why
-
-`@jamx/logger` exists to make logging composable, structured, and easy to adapt
-without turning the logger into a framework.
-
-Many logging libraries blend several concerns into one abstraction: creating
-log records, attaching context, formatting output, writing to destinations, and
-providing convenience methods all happen in the same layer. That can work for
-simple cases, but it gets harder to evolve when different environments need
-different formats, transports, or context strategies.
-
-This package takes a more modular approach:
-
-- keep the core record shape small and explicit: severity, timestamp, message,
-  and `meta`
-- treat structured metadata as first-class instead of burying information inside
-  formatted strings
-- separate log creation, context propagation, formatting, and transport into
-  distinct layers
-- keep formatters swappable because different transports may prefer different
-  output styles for the same log record
-- make composition the default, so the same logger can write to console,
-  in-memory buffers, task output, or multiple transports at once
-- keep convenience wrappers optional, with `Logger` as the low-level primitive
-  and `ContextLogger` and task helpers layered on top
-
-In practice, `@jamx/logger` is not trying to be a fully opinionated logging
-platform. It is a set of focused building blocks for producing log records and
-routing them wherever they need to go.
-
-## Design Principles
-
-- structured records first, formatted output second
-- composition over hardcoded behavior
-- context should be easy to add and inherit
-- transports and formatters should remain swappable
-- the low-level logger should stay small, predictable, and testable
-
-The package is split into a small core and optional convenience layers:
-
-- `Logger` is the low-level orchestrator. It creates log records, filters by severity, and hands records to a transport.
-- `ContextLogger` wraps any `ILogger` and adds contextual metadata plus convenience methods like `info()` and `error()`.
-- formatters and transports are separate building blocks, so output strategy stays composable.
+`@jamx/logger` keeps log creation, convenience methods, processing, formatting,
+and output as separate pieces. `CoreLogger` creates structured records,
+`Logger` provides a console-like API, optional processors can adjust records,
+and transports decide where logs go.
 
 ## Install
 
@@ -52,7 +13,7 @@ The package is split into a small core and optional convenience layers:
 pnpm add @jamx/logger
 ```
 
-## Basic Usage
+## Quick Start
 
 ```ts
 import {
@@ -74,22 +35,36 @@ logger.info("Request completed", {
 });
 ```
 
+## Pipeline
+
+```txt
+Logger facade -> CoreLogger severity filter -> Processor -> Transport -> Formatter/output
+```
+
+- `Logger` wraps any logger with convenience methods like `info()` and `warn()`.
+- `CoreLogger` creates `LogRecord` objects and applies the severity filter.
+- `Processor` optionally transforms a `LogRecord` before it reaches a transport.
+- `Transport` captures the record and writes or stores it.
+- `Formatter` converts a record to text when a transport needs formatted output.
+
+Processors only run for records that pass `minSeverity`.
+
 ## Structured Logging
 
-`message` is always a string. Structured data belongs in `meta`.
+`message` is always a string. Put structured data in `meta`.
 
 ```ts
 import {
-  JsonFormatter,
   ConsoleTransport,
   createLogger,
+  JsonFormatter,
   Severity,
 } from "@jamx/logger";
 
 const logger = createLogger({
-  transport: new ConsoleTransport(new JsonFormatter()),
   minSeverity: Severity.Debug,
   meta: { service: "payments" },
+  transport: new ConsoleTransport(new JsonFormatter()),
 });
 
 logger.log(Severity.Info, "charge succeeded", {
@@ -99,22 +74,278 @@ logger.log(Severity.Info, "charge succeeded", {
 });
 ```
 
-## Exports
+## Convenience Logging API
 
-The root package export is intended for most consumers:
+`CoreLogger` exposes the low-level `log(severity, message, meta)` method.
+`Logger` wraps any logger with convenience methods similar to `console`,
+including `info()`, `warn()`, and `error()`. It also forwards `transport` and
+`processor`, so those can still be changed through the facade.
+
+`createLogger` builds a `CoreLogger` and returns it wrapped in `Logger`.
+`createNamedLogger` does the same and adds a `logger` metadata field.
+`createLoggerFacade` wraps an existing logger. Use `createChildLogger` when a
+workflow needs extra inherited metadata.
 
 ```ts
 import {
-  Logger,
-  createLogger,
+  ConsoleTransport,
+  createChildLogger,
   createNamedLogger,
   PrettyFormatter,
-  TaskConsoleTransport,
+  Severity,
+} from "@jamx/logger";
+
+const logger = createNamedLogger({
+  name: "worker",
+  minSeverity: Severity.Info,
+  meta: { queue: "emails" },
+  transport: new ConsoleTransport(new PrettyFormatter()),
+});
+
+const requestLogger = createChildLogger(logger, {
+  requestId: "req_42",
+});
+
+const jobLogger = createChildLogger(requestLogger, {
+  jobId: "job_7",
+});
+
+jobLogger.info("Job started");
+jobLogger.warn("Job retry scheduled", { attempt: 2 });
+```
+
+## Processors
+
+Processors are useful for redaction, enrichment, normalization, or deriving
+metadata before a transport sees the record.
+
+```ts
+import {
+  ConsoleTransport,
+  createNamedLogger,
+  LogMeta,
+  LogRecord,
+  PrettyFormatter,
+  Processor,
+  Severity,
+} from "@jamx/logger";
+
+class RedactionProcessor implements Processor {
+  process(log: LogRecord): LogRecord {
+    const meta: LogMeta = { ...log.meta, source: "auth" };
+
+    if (typeof meta.token === "string") {
+      meta.token = "[redacted]";
+    }
+
+    return { ...log, meta };
+  }
+}
+
+const logger = createNamedLogger({
+  name: "auth",
+  minSeverity: Severity.Info,
+  processor: new RedactionProcessor(),
+  transport: new ConsoleTransport(new PrettyFormatter()),
+});
+```
+
+The processor can also be swapped at runtime:
+
+```ts
+logger.processor = undefined;
+```
+
+## Transports And Formatters
+
+Built-in transports:
+
+- `ConsoleTransport`: writes formatted logs to `console.log` or `console.error`.
+- `MemoryTransport`: stores records in memory for tests or inspection.
+- `CompositeTransport`: fans out one record to multiple transports.
+- `LineConsoleTransport`: updates stable terminal lines using `lineId` metadata.
+
+Built-in formatters:
+
+- `PrettyFormatter`: human-readable console output.
+- `JsonFormatter`: JSON lines for structured output.
+- `TextFormatter`: compact text output.
+
+Custom formatters implement `Formatter`:
+
+```ts
+import { Formatter, LogRecord } from "@jamx/logger";
+
+class CompactFormatter implements Formatter {
+  format(log: LogRecord): string {
+    return `${log.severityName.toUpperCase()}: ${log.message}`;
+  }
+}
+```
+
+Custom transports implement `Transport`:
+
+```ts
+import { LogRecord, Transport } from "@jamx/logger";
+
+class ArrayTransport implements Transport {
+  readonly logs: LogRecord[] = [];
+
+  capture(log: LogRecord): void {
+    this.logs.push(log);
+  }
+}
+```
+
+## Examples
+
+Run examples from this package directory:
+
+```bash
+pnpm run example:basic
+pnpm run example:structured
+pnpm run example:context
+pnpm run example:processor
+pnpm run example:memory
+pnpm run example:composite
+pnpm run example:formatter
+pnpm run example:line
+```
+
+The example files live in `example/`:
+
+- `basic.ts`: named console logger with pretty output.
+- `structured.ts`: JSON output and structured metadata.
+- `context.ts`: inherited metadata with child loggers.
+- `processor.ts`: redaction and enrichment with a processor.
+- `memory.ts`: capture logs in memory.
+- `composite-transport.ts`: write one record to multiple transports.
+- `custom-formatter.ts`: implement a formatter.
+- `line-console.ts`: update stable terminal lines.
+
+## API Reference
+
+### `Severity`
+
+```ts
+enum Severity {
+  Silly = 0,
+  Trace = 1,
+  Debug = 2,
+  Info = 3,
+  Warn = 4,
+  Error = 5,
+  Fatal = 6,
+}
+```
+
+### `LogRecord`
+
+```ts
+interface LogRecord {
+  severity: Severity;
+  severityName: string;
+  timestamp: Date;
+  message: string;
+  meta: LogMeta;
+}
+```
+
+### `LoggerOptions`
+
+Options for `createLogger`, `createNamedLogger`, `CoreLogger`, and
+`createCoreLogger`.
+
+```ts
+interface LoggerOptions {
+  meta?: LogMeta;
+  clock?: () => Date;
+  transport: Transport;
+  processor?: Processor;
+  minSeverity?: Severity;
+}
+```
+
+### `NamedLoggerOptions`
+
+```ts
+interface NamedLoggerOptions extends LoggerOptions {
+  name: string;
+}
+```
+
+### Core Interfaces
+
+```ts
+type LogMeta = Record<string, unknown>;
+
+interface Processor {
+  process(log: LogRecord): LogRecord;
+}
+
+interface Transport {
+  formatter?: Formatter;
+  capture(log: LogRecord): void;
+}
+
+interface Formatter {
+  format(log: LogRecord): string;
+}
+```
+
+### Constructors And Helpers
+
+```ts
+class CoreLogger implements ILogger {}
+
+class Logger implements ILogger {
+  silly(message: string, meta?: LogMeta): void;
+  trace(message: string, meta?: LogMeta): void;
+  debug(message: string, meta?: LogMeta): void;
+  info(message: string, meta?: LogMeta): void;
+  warn(message: string, meta?: LogMeta): void;
+  error(message: string, meta?: LogMeta): void;
+  fatal(message: string, meta?: LogMeta): void;
+}
+
+function createCoreLogger(options: LoggerOptions): CoreLogger;
+function createLogger(options: LoggerOptions): Logger;
+function createNamedLogger(options: NamedLoggerOptions): Logger;
+function createLoggerFacade(logger: ILogger, meta?: LogMeta): Logger;
+function createChildLogger(logger: ILogger, meta: LogMeta): Logger;
+```
+
+## Exports
+
+Most consumers should import from the root package:
+
+```ts
+import {
+  ConsoleTransport,
+  CoreLogger,
+  Logger,
+  createChildLogger,
+  createCoreLogger,
+  createLogger,
+  createNamedLogger,
+  JsonFormatter,
+  LineConsoleTransport,
+  MemoryTransport,
+  PrettyFormatter,
+  Severity,
 } from "@jamx/logger";
 ```
 
-There are also explicit subpath exports for:
+Explicit subpath exports are also available:
 
 - `@jamx/logger/Logger`
 - `@jamx/logger/Formatter`
 - `@jamx/logger/Transport`
+
+## Development
+
+```bash
+pnpm run typecheck
+pnpm run typecheck:examples
+pnpm test
+```
