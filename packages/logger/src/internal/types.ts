@@ -1,9 +1,10 @@
-import { LogMeta, Transport, Severity } from "./core.js";
+import { LogMeta, Transport, Severity, Processor } from "./core.js";
 
 export interface LoggerOptions {
   meta?: LogMeta;
   clock?: () => Date;
   transport: Transport;
+  processor?: Processor;
   minSeverity?: Severity;
 }
 

@@ -20,6 +20,7 @@ export interface LogRecord {
 
 export interface ILogger {
   transport: Transport;
+  processor?: Processor;
   log(severity: Severity, message: string, meta?: LogMeta): void;
 }
 
@@ -30,4 +31,8 @@ export interface Transport {
 
 export interface Formatter {
   format(log: LogRecord): string;
+}
+
+export interface Processor {
+  process(log: LogRecord): LogRecord;
 }
