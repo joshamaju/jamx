@@ -5,13 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test:unit": "vitest",
     "start": "tsx ./src/main.ts",
     "view:build": "stack54 build",
     "build": "tsc -p tsconfig.build.json",
-    "test:integration": "playwright test",
     "start:dev": "NODE_ENV=development tsx ./src/main.ts",
-    "test": "npm run test:integration && npm run test:unit",
     "dev": "nodemon --exec 'pnpm start:dev' --watch src --watch build/server -e js,ts",
     "view:dev": "nodemon --exec 'pnpm view:build' --watch resources -e js,ts,svelte,css"
   },
