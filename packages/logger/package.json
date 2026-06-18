@@ -23,6 +23,11 @@
       "import": "./build/Formatter.js",
       "default": "./build/Formatter.js"
     },
+    "./Processor": {
+      "types": "./build/Processor.d.ts",
+      "import": "./build/Processor.js",
+      "default": "./build/Processor.js"
+    },
     "./Transport": {
       "types": "./build/Transport.d.ts",
       "import": "./build/Transport.js",

@@ -122,30 +122,21 @@ metadata before a transport sees the record.
 ```ts
 import {
   ConsoleTransport,
+  CompositeProcessor,
   createNamedLogger,
-  LogMeta,
-  LogRecord,
+  DefaultsProcessor,
   PrettyFormatter,
-  Processor,
+  RedactProcessor,
   Severity,
 } from "@jamx/logger";
-
-class RedactionProcessor implements Processor {
-  process(log: LogRecord): LogRecord {
-    const meta: LogMeta = { ...log.meta, source: "auth" };
-
-    if (typeof meta.token === "string") {
-      meta.token = "[redacted]";
-    }
-
-    return { ...log, meta };
-  }
-}
 
 const logger = createNamedLogger({
   name: "auth",
   minSeverity: Severity.Info,
-  processor: new RedactionProcessor(),
+  processor: new CompositeProcessor([
+    new DefaultsProcessor({ source: "auth" }),
+    new RedactProcessor(["token"]),
+  ]),
   transport: new ConsoleTransport(new PrettyFormatter()),
 });
 ```
@@ -155,6 +146,14 @@ The processor can also be swapped at runtime:
 ```ts
 logger.processor = undefined;
 ```
+
+Built-in processors:
+
+- `CompositeProcessor`: runs multiple processors in order.
+- `DefaultsProcessor`: adds default metadata without overwriting existing keys.
+- `RedactProcessor`: replaces values for configured metadata keys without
+  changing field names.
+- `ErrorProcessor`: normalizes `Error` values in metadata.
 
 ## Transports And Formatters
 
@@ -324,14 +323,18 @@ import {
   ConsoleTransport,
   CoreLogger,
   Logger,
+  CompositeProcessor,
   createChildLogger,
   createCoreLogger,
   createLogger,
   createNamedLogger,
+  DefaultsProcessor,
+  ErrorProcessor,
   JsonFormatter,
   LineConsoleTransport,
   MemoryTransport,
   PrettyFormatter,
+  RedactProcessor,
   Severity,
 } from "@jamx/logger";
 ```
@@ -340,6 +343,7 @@ Explicit subpath exports are also available:
 
 - `@jamx/logger/Logger`
 - `@jamx/logger/Formatter`
+- `@jamx/logger/Processor`
 - `@jamx/logger/Transport`
 
 ## Development

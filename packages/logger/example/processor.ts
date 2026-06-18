@@ -1,29 +1,20 @@
 import {
   ConsoleTransport,
+  CompositeProcessor,
   createNamedLogger,
-  LogMeta,
-  LogRecord,
+  DefaultsProcessor,
   PrettyFormatter,
-  Processor,
+  RedactProcessor,
   Severity,
 } from "../src/index.js";
-
-class RedactionProcessor implements Processor {
-  process(log: LogRecord): LogRecord {
-    const meta: LogMeta = { ...log.meta, source: "processor-example" };
-
-    if (typeof meta.token === "string") {
-      meta.token = "[redacted]";
-    }
-
-    return { ...log, meta };
-  }
-}
 
 const logger = createNamedLogger({
   name: "auth",
   minSeverity: Severity.Info,
-  processor: new RedactionProcessor(),
+  processor: new CompositeProcessor([
+    new DefaultsProcessor({ source: "processor-example" }),
+    new RedactProcessor(["token"]),
+  ]),
   transport: new ConsoleTransport(new PrettyFormatter({ colorize: true })),
 });
 
