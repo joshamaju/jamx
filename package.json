@@ -10,6 +10,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "changeset": "changeset",
+    "docs:build": "pnpm --filter @jamx/docs build",
+    "docs:dev": "pnpm --filter @jamx/docs dev",
+    "docs:preview": "pnpm --filter @jamx/docs preview",
     "release": "changeset publish",
     "version": "changeset version",
     "test": "pnpm --filter '!./templates/**' --filter '!./playground/**' -r test"
@@ -22,5 +25,10 @@
     "@changesets/cli": "^2.30.0",
     "@standard-schema/spec": "^1.1.0",
     "zod": "^4.3.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "@astrojs/sitemap": "3.6.0"
+    }
   }
 }

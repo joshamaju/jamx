@@ -1,0 +1,43 @@
+---
+title: jamx
+description: Small, composable TypeScript packages for HTTP workflows and structured logging.
+template: splash
+prev: false
+next: false
+hero:
+  tagline: Small TypeScript packages built around composition, explicit data, and APIs that stay useful on their own.
+  actions:
+    - text: Browse packages
+      link: /http/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/joshamaju/jamx
+      icon: external
+      variant: secondary
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+`jamx` is a home for TypeScript utilities that should be easy to understand, practical in day-to-day code, and small enough to compose without pulling a framework into the center of your application.
+
+## Why jamx exists
+
+The packages in this repository are built around a few steady constraints:
+
+- Prefer small APIs over large frameworks.
+- Keep behavior explicit instead of hidden behind broad abstractions.
+- Model data and errors in ways TypeScript can help with.
+- Let each package work on its own and combine cleanly with the rest of the ecosystem.
+
+## Packages
+
+<CardGrid>
+  <Card title="@jamx/http" icon="seti:http">
+    Composable `fetch` helpers for request interceptors, response decoding, status validation, retries, caching, and Railway-style results.
+  </Card>
+  <Card title="@jamx/logger" icon="seti:json">
+    Structured logging primitives that keep records, processors, formatters, and transports as separate pieces.
+  </Card>
+</CardGrid>
+
+Start with [`@jamx/http`](/http/) when you need a small HTTP workflow layer. Start with [`@jamx/logger`](/logger/) when you need structured logs without coupling formatting, processing, and output.
