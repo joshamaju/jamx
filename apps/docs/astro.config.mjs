@@ -18,7 +18,7 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        { label: "Overview", slug: "index" },
+        { label: "Overview", link: "/" },
         {
           label: "@jamx/http",
           items: [
