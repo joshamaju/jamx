@@ -37,7 +37,7 @@ logger.info("Request completed", {
 
 ## Next Steps
 
-- Start with [Quick Start](/logger/quick-start/).
-- Learn the [logging pipeline](/logger/pipeline/).
-- Add [processors](/logger/processors/) for redaction and enrichment.
-- Choose [transports and formatters](/logger/transports/) for output.
+- Start with [Quick Start](quick-start/).
+- Learn the [logging pipeline](pipeline/).
+- Add [processors](processors/) for redaction and enrichment.
+- Choose [transports and formatters](transports/) for output.

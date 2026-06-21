@@ -99,6 +99,6 @@ type FetchTextResult = Awaited<ReturnType<typeof fetchText>>;
 
 ## Next Steps
 
-- Start with [Quick Start](/http/quick-start/).
-- Learn how [interceptors](/http/interceptors/) shape requests.
-- Use [decoders](/http/decoders/) to parse and validate response bodies.
+- Start with [Quick Start](quick-start/).
+- Learn how [interceptors](interceptors/) shape requests.
+- Use [decoders](decoders/) to parse and validate response bodies.
