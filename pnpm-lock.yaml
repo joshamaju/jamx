@@ -88,6 +88,10 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(tsx@4.21.0)
+    optionalDependencies:
+      '@paydirt/fmt':
+        specifier: ^0.3.1
+        version: 0.3.1
 
 packages:
 
@@ -746,6 +750,9 @@ packages:
     resolution: {integrity: sha512-Fa2Iyw7kaDRzGMfNYNUXNW2zbL5FQVDgSOcbDHdzBrDEdpqOqg8TcZ68F22ol6NJ9IGzvUdmeyZypLW5dyhqsg==}
     cpu: [x64]
     os: [win32]
+
+  '@paydirt/fmt@0.3.1':
+    resolution: {integrity: sha512-senJIDjZwkSjoTlTT9JgQUsQVVn+GTZBfAwBHBSwItoYAab2yweZcTM1mxKMz57+IHaaZFRPhqNZXuNVaLsuLQ==}
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -3343,6 +3350,9 @@ snapshots:
     optional: true
 
   '@pagefind/windows-x64@1.5.2':
+    optional: true
+
+  '@paydirt/fmt@0.3.1':
     optional: true
 
   '@polka/url@1.0.0-next.29': {}

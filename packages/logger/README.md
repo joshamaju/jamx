@@ -169,6 +169,7 @@ Built-in formatters:
 - `PrettyFormatter`: human-readable console output.
 - `JsonFormatter`: JSON lines for structured output.
 - `TextFormatter`: compact text output.
+- `PrintfFormatter`: printf-style message interpolation with metadata values.
 
 Custom formatters implement `Formatter`:
 
@@ -208,6 +209,7 @@ pnpm run example:processor
 pnpm run example:memory
 pnpm run example:composite
 pnpm run example:formatter
+pnpm run example:printf
 pnpm run example:line
 ```
 
@@ -220,6 +222,7 @@ The example files live in `example/`:
 - `memory.ts`: capture logs in memory.
 - `composite-transport.ts`: write one record to multiple transports.
 - `custom-formatter.ts`: implement a formatter.
+- `printf.ts`: format messages with printf-style placeholders.
 - `line-console.ts`: update stable terminal lines.
 
 ## API Reference
@@ -334,6 +337,7 @@ import {
   LineConsoleTransport,
   MemoryTransport,
   PrettyFormatter,
+  PrintfFormatter,
   RedactProcessor,
   Severity,
 } from "@jamx/logger";

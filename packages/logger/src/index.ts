@@ -3,6 +3,7 @@ export * from "./internal/core-logger.js";
 export * from "./internal/logger.js";
 export * from "./internal/formatters/json.js";
 export * from "./internal/formatters/pretty.js";
+export * from "./internal/formatters/printf.js";
 export * from "./internal/formatters/text.js";
 export * from "./internal/processors/composite.js";
 export * from "./internal/processors/defaults.js";

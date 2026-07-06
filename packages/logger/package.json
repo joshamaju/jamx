@@ -54,6 +54,7 @@
     "example:memory": "tsx ./example/memory.ts",
     "example:composite": "tsx ./example/composite-transport.ts",
     "example:formatter": "tsx ./example/custom-formatter.ts",
+    "example:printf": "tsx ./example/printf.ts",
     "example:line": "tsx ./example/line-console.ts",
     "typecheck:examples": "tsc --noEmit --module nodenext --moduleResolution nodenext --target ES2020 --strict --noUnusedLocals --noUnusedParameters --esModuleInterop --skipLibCheck example/*.ts"
   },
@@ -86,5 +87,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
+  },
+  "optionalDependencies": {
+    "@paydirt/fmt": "^0.3.1"
   }
 }
