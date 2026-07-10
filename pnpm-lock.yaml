@@ -69,6 +69,10 @@ importers:
         version: 4.1.7(@types/node@25.3.3)(@vitest/browser-playwright@4.1.7)(vite@7.3.1(@types/node@25.3.3)(tsx@4.21.0))
 
   packages/logger:
+    dependencies:
+      '@paydirt/fmt':
+        specifier: ^0.3.1
+        version: 0.3.1
     devDependencies:
       '@changesets/cli':
         specifier: ^2.30.0
@@ -88,10 +92,6 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(tsx@4.21.0)
-    optionalDependencies:
-      '@paydirt/fmt':
-        specifier: ^0.3.1
-        version: 0.3.1
 
 packages:
 
@@ -3352,8 +3352,7 @@ snapshots:
   '@pagefind/windows-x64@1.5.2':
     optional: true
 
-  '@paydirt/fmt@0.3.1':
-    optional: true
+  '@paydirt/fmt@0.3.1': {}
 
   '@polka/url@1.0.0-next.29': {}
 

@@ -10,6 +10,69 @@ async function flushTransport(): Promise<void> {
 }
 
 describe("LineConsoleTransport", () => {
+  it("flushes pending writes immediately and remains usable", async () => {
+    const write = vi.fn();
+
+    const transport = new LineConsoleTransport({
+      write,
+      interactive: false,
+      formatter: { format: (log) => log.message },
+    });
+
+    transport.capture({
+      meta: {},
+      message: "first",
+      severityName: "info",
+      severity: Severity.Info,
+      timestamp: new Date(),
+    });
+
+    await transport.flush();
+
+    expect(write.mock.calls).toEqual([["first\n"]]);
+
+    transport.capture({
+      meta: {},
+      message: "second",
+      severityName: "info",
+      severity: Severity.Info,
+      timestamp: new Date(),
+    });
+
+    await transport.flush();
+
+    expect(write.mock.calls).toEqual([["first\n"], ["second\n"]]);
+  });
+
+  it("flushes on close and ignores subsequent records", async () => {
+    const write = vi.fn();
+
+    const transport = new LineConsoleTransport({
+      write,
+      interactive: false,
+      formatter: { format: (log) => log.message },
+    });
+
+    const record: LogRecord = {
+      message: "before close",
+      severity: Severity.Info,
+      timestamp: new Date(),
+      severityName: "info",
+      meta: {},
+    };
+
+    transport.capture(record);
+
+    await transport.close();
+    await transport.close();
+
+    transport.capture({ ...record, message: "after close" });
+
+    await transport.flush();
+
+    expect(write.mock.calls).toEqual([["before close\n"]]);
+  });
+
   it("strips internal line metadata from formatter output", async () => {
     const write = vi.fn();
 

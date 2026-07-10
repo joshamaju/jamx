@@ -36,12 +36,13 @@ function normalizeLog(log: LogRecord): LogRecord {
 
 export class LineConsoleTransport implements Transport {
   private readonly activeLines = new Map<string, ActiveLine>();
-  private readonly renderedLines: string[] = [];
-  private readonly interactive: boolean;
   private readonly write: (output: string) => void;
+  private readonly renderedLines: string[] = [];
   private readonly pendingWrites: string[] = [];
+  private readonly interactive: boolean;
   private flushScheduled = false;
   private _formatter: Formatter;
+  private closed = false;
 
   constructor({
     formatter,
@@ -50,8 +51,8 @@ export class LineConsoleTransport implements Transport {
       process.stdout.write(output);
     },
   }: Options) {
-    this._formatter = formatter;
     this.interactive = interactive;
+    this._formatter = formatter;
     this.write = write;
   }
 
@@ -64,6 +65,8 @@ export class LineConsoleTransport implements Transport {
   }
 
   capture(log: LogRecord): void {
+    if (this.closed) return;
+
     const normalizedLog = normalizeLog(log);
     const output = this._formatter.format(normalizedLog);
 
@@ -104,6 +107,16 @@ export class LineConsoleTransport implements Transport {
     }
   }
 
+  async flush(): Promise<void> {
+    this.flushPendingWrites();
+  }
+
+  async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    await this.flush();
+  }
+
   private appendRenderedLine(output: string): void {
     if (this.renderedLines.length === 0) {
       this.enqueueWrite(output);
@@ -133,28 +146,27 @@ export class LineConsoleTransport implements Transport {
   }
 
   private enqueueWrite(output: string): void {
-    if (output.length === 0) {
-      return;
-    }
+    if (output.length === 0) return;
 
     this.pendingWrites.push(output);
 
-    if (this.flushScheduled) {
-      return;
-    }
+    if (this.flushScheduled) return;
 
     this.flushScheduled = true;
 
     queueMicrotask(() => {
       this.flushScheduled = false;
-
-      if (this.pendingWrites.length === 0) {
-        return;
-      }
-
-      const flushedOutput = this.pendingWrites.join("");
-      this.pendingWrites.length = 0;
-      this.write(flushedOutput);
+      this.flushPendingWrites();
     });
+  }
+
+  private flushPendingWrites(): void {
+    if (this.pendingWrites.length === 0) {
+      return;
+    }
+
+    const output = this.pendingWrites.join("");
+    this.pendingWrites.length = 0;
+    this.write(output);
   }
 }

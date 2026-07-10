@@ -197,6 +197,19 @@ class ArrayTransport implements Transport {
 }
 ```
 
+Transports that buffer or asynchronously deliver records can optionally expose
+`flush()` and `close()`. `flush()` waits for pending records while leaving the
+transport usable. `close()` must flush pending records, release resources, and
+be safe to call more than once.
+
+```ts
+await logger.transport.flush?.();
+await logger.transport.close?.();
+```
+
+`CompositeTransport` propagates both operations to every resolved child
+transport and isolates individual child failures.
+
 ## Examples
 
 Run examples from this package directory:
@@ -288,6 +301,8 @@ interface Processor {
 interface Transport {
   formatter?: Formatter;
   capture(log: LogRecord): void;
+  flush?(): Promise<void>;
+  close?(): Promise<void>;
 }
 
 interface Formatter {

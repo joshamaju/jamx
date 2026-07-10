@@ -88,7 +88,7 @@
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
   },
-  "optionalDependencies": {
+  "dependencies": {
     "@paydirt/fmt": "^0.3.1"
   }
 }

@@ -180,7 +180,49 @@ describe("Logger", () => {
     ]);
 
     createCoreLogger({ transport }).log(Severity.Info, "delivered");
+
     expect(memory.logs[0]?.message).toBe("delivered");
+  });
+
+  it("flushes and closes every resolved composite destination", async () => {
+    const calls: string[] = [];
+
+    const first = {
+      capture() {},
+      async flush() {
+        calls.push("first:flush");
+      },
+      async close() {
+        calls.push("first:close");
+      },
+    };
+
+    const second = {
+      capture() {},
+      async flush() {
+        calls.push("second:flush");
+        throw new Error("flush failed");
+      },
+    };
+
+    const transport = new CompositeTransport([first, () => second]);
+
+    const logger = createCoreLogger({ transport });
+
+    logger.log(Severity.Info, "queued");
+
+    await transport.flush();
+    await transport.close();
+    await transport.close();
+
+    logger.log(Severity.Info, "ignored");
+
+    expect(calls).toEqual([
+      "first:flush",
+      "second:flush",
+      "first:close",
+      "second:flush",
+    ]);
   });
 });
 

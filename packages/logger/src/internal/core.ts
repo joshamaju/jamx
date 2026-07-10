@@ -26,6 +26,8 @@ export interface ILogger {
 
 export interface Transport {
   formatter?: Formatter;
+  flush?(): Promise<void>;
+  close?(): Promise<void>;
   capture(log: LogRecord): void;
 }
 
