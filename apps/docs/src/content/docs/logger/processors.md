@@ -39,3 +39,15 @@ logger.processor = undefined;
 - `DefaultsProcessor`: adds default metadata without overwriting existing keys.
 - `RedactProcessor`: replaces values for configured metadata keys without changing field names.
 - `ErrorProcessor`: normalizes `Error` values in metadata.
+
+`RedactProcessor` walks nested objects and arrays, preserves circular object
+graphs safely, and does not mutate the original metadata. Configure every key
+that may contain sensitive information:
+
+```ts
+new RedactProcessor(["password", "token", "authorization", "apiKey"]);
+```
+
+Processor failures fall back to the original record. Put redaction before other
+custom processors when sensitive metadata must be removed before further
+processing.

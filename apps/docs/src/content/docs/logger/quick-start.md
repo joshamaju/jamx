@@ -61,3 +61,17 @@ const requestLogger = createChildLogger(logger, {
 
 requestLogger.info("Request completed", { durationMs: 18 });
 ```
+
+## Graceful Shutdown
+
+If the configured transport buffers or asynchronously delivers records, close
+it before the process exits:
+
+```ts
+logger.info("Worker shutting down");
+await logger.transport.close?.();
+```
+
+Synchronous transports do not need to implement lifecycle methods. See
+[Transports And Formatters](../transports/#transport-lifecycle) for the full
+contract.

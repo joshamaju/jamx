@@ -5,7 +5,10 @@ description: Composable structured logging primitives for TypeScript and Node.js
 
 `@jamx/logger` keeps log creation, convenience methods, processing, formatting, and output as separate pieces.
 
-`CoreLogger` creates structured records, `Logger` provides a console-like API, processors can adjust records, and transports decide where logs go.
+`CoreLogger` creates structured records, `Logger` provides a console-like API,
+processors can adjust records, and transports decide where logs go. Logging is
+best-effort: processor, formatter, and transport failures do not escape into
+application code.
 
 ## Install
 
@@ -41,3 +44,5 @@ logger.info("Request completed", {
 - Learn the [logging pipeline](pipeline/).
 - Add [processors](processors/) for redaction and enrichment.
 - Choose [transports and formatters](transports/) for output.
+- Learn how to [flush and close transports](transports/#transport-lifecycle)
+  during graceful shutdown.

@@ -13,6 +13,7 @@ pnpm run example:processor
 pnpm run example:memory
 pnpm run example:composite
 pnpm run example:formatter
+pnpm run example:printf
 pnpm run example:line
 ```
 
@@ -25,4 +26,5 @@ pnpm run example:line
 - `memory.ts`: capture logs in memory.
 - `composite-transport.ts`: write one record to multiple transports.
 - `custom-formatter.ts`: implement a formatter.
+- `printf.ts`: interpolate printf-style messages.
 - `line-console.ts`: update stable terminal lines.

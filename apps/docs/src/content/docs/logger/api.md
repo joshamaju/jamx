@@ -29,6 +29,31 @@ interface LogRecord {
 }
 ```
 
+## Core Interfaces
+
+```ts
+type LogMeta = Record<string, unknown>;
+
+interface Processor {
+  process(log: LogRecord): LogRecord;
+}
+
+interface Transport {
+  formatter?: Formatter;
+  capture(log: LogRecord): void;
+  flush?(): Promise<void>;
+  close?(): Promise<void>;
+}
+
+interface Formatter {
+  format(log: LogRecord): string;
+}
+```
+
+`flush()` leaves a transport open. `close()` flushes pending records and
+releases transport resources. Both methods are optional for synchronous
+transports.
+
 ## Logger Creation
 
 - `createLogger(options)`: creates a structured logger facade.
@@ -50,8 +75,13 @@ interface LogRecord {
 - `CompositeTransport`
 - `LineConsoleTransport`
 
+`CompositeTransport` forwards lifecycle operations to its resolved child
+transports. `LineConsoleTransport` supports `flush()` and `close()` for its
+buffered writes.
+
 ## Formatters
 
 - `PrettyFormatter`
 - `JsonFormatter`
 - `TextFormatter`
+- `PrintfFormatter`
