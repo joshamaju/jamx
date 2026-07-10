@@ -54,3 +54,12 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          timeout: 10
+        continue-on-error: true
+
+      - name: Retry deployment if failed
+        if: failure()
+        uses: actions/deploy-pages@v5
+        with:
+          timeout: 10
