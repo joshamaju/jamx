@@ -48,6 +48,18 @@ logger.log(Severity.Info, "charge succeeded", {
 });
 ```
 
+To write JSON logs to Node's diagnostic stream while keeping the transport
+itself runtime-neutral, use `WriterTransport`:
+
+```ts
+import { JsonFormatter, WriterTransport } from "@jamx/logger";
+
+const transport = new WriterTransport(
+  new JsonFormatter(),
+  (output) => process.stderr.write(`${output}\n`),
+);
+```
+
 ## Create Child Loggers
 
 Use `createChildLogger` when a workflow needs extra inherited metadata.

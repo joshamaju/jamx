@@ -2,6 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "outDir": "build",
+    "types": ["node"],
     "target": "ES2020",
     "declaration": true,
     "incremental": true,
@@ -13,7 +14,7 @@
     "esModuleInterop": true,
     "noUnusedParameters": true,
     "moduleResolution": "NodeNext",
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src"],
   "exclude": ["test"]

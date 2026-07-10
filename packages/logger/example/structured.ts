@@ -1,14 +1,16 @@
 import {
-  ConsoleTransport,
   createLogger,
   JsonFormatter,
   Severity,
+  WriterTransport,
 } from "../src/index.js";
 
 const logger = createLogger({
   minSeverity: Severity.Debug,
   meta: { service: "payments" },
-  transport: new ConsoleTransport(new JsonFormatter()),
+  transport: new WriterTransport(new JsonFormatter(), (output) => {
+    process.stderr.write(`${output}\n`);
+  }),
 });
 
 logger.log(Severity.Debug, "charge request received", {

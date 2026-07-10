@@ -1,24 +1,17 @@
-import { Formatter, LogRecord, Severity, Transport } from "../core.js";
+import { Formatter, Severity } from "../core.js";
+import { LogWriter, WriterTransport } from "./writer.js";
 
-export class ConsoleTransport implements Transport {
-  constructor(private _formatter: Formatter) {}
-
-  get formatter(): Formatter {
-    return this._formatter;
+const writeToConsole: LogWriter = (output, log) => {
+  if (log.severity >= Severity.Warn) {
+    console.error(output);
+    return;
   }
 
-  set formatter(formatter: Formatter) {
-    this._formatter = formatter;
-  }
+  console.log(output);
+};
 
-  capture(log: LogRecord): void {
-    const output = this._formatter.format(log);
-
-    if (log.severity >= Severity.Warn) {
-      console.error(output);
-      return;
-    }
-
-    console.log(output);
+export class ConsoleTransport extends WriterTransport {
+  constructor(formatter: Formatter) {
+    super(formatter, writeToConsole);
   }
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createChildLogger,
@@ -11,6 +11,7 @@ import {
   PrettyFormatter,
   PrintfFormatter,
   Severity,
+  WriterTransport,
 } from "../src/index.js";
 
 describe("Logger", () => {
@@ -223,6 +224,54 @@ describe("Logger", () => {
       "first:close",
       "second:flush",
     ]);
+  });
+});
+
+describe("WriterTransport", () => {
+  it("writes formatted output with the original record", () => {
+    const writes: Array<{ output: string; message: string }> = [];
+    const transport = new WriterTransport(
+      { format: (log) => log.message.toUpperCase() },
+      (output, log) => writes.push({ output, message: log.message }),
+    );
+    const logger = createCoreLogger({ transport });
+
+    logger.log(Severity.Info, "written");
+
+    expect(writes).toEqual([{ output: "WRITTEN", message: "written" }]);
+  });
+
+  it("supports replacing its formatter", () => {
+    const writes: string[] = [];
+    const transport = new WriterTransport(
+      { format: (log) => log.message },
+      (output) => writes.push(output),
+    );
+
+    transport.formatter = { format: (log) => `[${log.message}]` };
+    createCoreLogger({ transport }).log(Severity.Info, "updated");
+
+    expect(writes).toEqual(["[updated]"]);
+  });
+});
+
+describe("ConsoleTransport", () => {
+  it("preserves severity-based console routing", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logger = createCoreLogger({
+      minSeverity: Severity.Debug,
+      transport: new ConsoleTransport({ format: (record) => record.message }),
+    });
+
+    logger.log(Severity.Info, "info");
+    logger.log(Severity.Warn, "warn");
+
+    expect(log).toHaveBeenCalledWith("info");
+    expect(error).toHaveBeenCalledWith("warn");
+
+    log.mockRestore();
+    error.mockRestore();
   });
 });
 

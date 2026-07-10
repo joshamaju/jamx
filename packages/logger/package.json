@@ -49,6 +49,7 @@
     "dev": "tsx ./example/basic.ts",
     "example:basic": "tsx ./example/basic.ts",
     "example:structured": "tsx ./example/structured.ts",
+    "example:writer-pretty": "tsx ./example/writer-pretty.ts",
     "example:context": "tsx ./example/context.ts",
     "example:processor": "tsx ./example/processor.ts",
     "example:memory": "tsx ./example/memory.ts",

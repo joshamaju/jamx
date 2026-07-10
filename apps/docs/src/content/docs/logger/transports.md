@@ -8,6 +8,8 @@ Transports capture log records. Formatters convert records to text when a transp
 ## Built-In Transports
 
 - `ConsoleTransport`: writes formatted logs to `console.log` or `console.error`.
+- `WriterTransport`: passes formatted output and the original record to a
+  synchronous runtime-neutral callback.
 - `MemoryTransport`: stores records in memory for tests or inspection.
 - `CompositeTransport`: fans out one record to multiple transports.
 - `LineConsoleTransport`: updates stable terminal lines using `lineId` metadata.
@@ -44,6 +46,42 @@ class ArrayTransport implements Transport {
     this.logs.push(log);
   }
 }
+```
+
+## Writer Transport
+
+Use `WriterTransport` to control the output destination without coupling the
+transport to Node.js streams, browser consoles, or another runtime API:
+
+```ts
+import { JsonFormatter, WriterTransport } from "@jamx/logger";
+
+const transport = new WriterTransport(
+  new JsonFormatter(),
+  (output, record) => {
+    process.stderr.write(`${output}\n`);
+  },
+);
+```
+
+The writer receives formatted output without an added newline and the original
+`LogRecord`. This allows severity-based routing without parsing the formatted
+text. Writers are synchronous; networked or buffered transports should own
+their asynchronous queue and expose the lifecycle methods below.
+
+`ConsoleTransport` is the convenience specialization for the JavaScript
+console. It preserves the existing behavior of sending warnings and errors to
+`console.error` and lower severities to `console.log`.
+
+`WriterTransport` works with human-readable formatters too:
+
+```ts
+import { PrettyFormatter, WriterTransport } from "@jamx/logger";
+
+const transport = new WriterTransport(
+  new PrettyFormatter({ colorize: Boolean(process.stderr.isTTY) }),
+  (output) => process.stderr.write(`${output}\n`),
+);
 ```
 
 ## Transport Lifecycle

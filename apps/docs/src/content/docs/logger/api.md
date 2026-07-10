@@ -74,6 +74,15 @@ transports.
 - `MemoryTransport`
 - `CompositeTransport`
 - `LineConsoleTransport`
+- `WriterTransport`
+
+```ts
+type LogWriter = (output: string, log: LogRecord) => void;
+
+class WriterTransport implements Transport {
+  constructor(formatter: Formatter, write: LogWriter);
+}
+```
 
 `CompositeTransport` forwards lifecycle operations to its resolved child
 transports. `LineConsoleTransport` supports `flush()` and `close()` for its

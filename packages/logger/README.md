@@ -160,6 +160,8 @@ Built-in processors:
 Built-in transports:
 
 - `ConsoleTransport`: writes formatted logs to `console.log` or `console.error`.
+- `WriterTransport`: sends formatted output and its record to a synchronous
+  runtime-neutral writer callback.
 - `MemoryTransport`: stores records in memory for tests or inspection.
 - `CompositeTransport`: fans out one record to multiple transports.
 - `LineConsoleTransport`: updates stable terminal lines using `lineId` metadata.
@@ -210,6 +212,22 @@ await logger.transport.close?.();
 `CompositeTransport` propagates both operations to every resolved child
 transport and isolates individual child failures.
 
+Use `WriterTransport` when output should go somewhere other than the JavaScript
+console. The callback receives the formatted output without an added newline
+and the original structured record:
+
+```ts
+import { JsonFormatter, WriterTransport } from "@jamx/logger";
+
+const transport = new WriterTransport(
+  new JsonFormatter(),
+  (output) => process.stderr.write(`${output}\n`),
+);
+```
+
+`ConsoleTransport` remains a convenience specialization that routes warnings
+and errors to `console.error` and lower severities to `console.log`.
+
 ## Examples
 
 Run examples from this package directory:
@@ -217,6 +235,7 @@ Run examples from this package directory:
 ```bash
 pnpm run example:basic
 pnpm run example:structured
+pnpm run example:writer-pretty
 pnpm run example:context
 pnpm run example:processor
 pnpm run example:memory
@@ -230,6 +249,7 @@ The example files live in `example/`:
 
 - `basic.ts`: named console logger with pretty output.
 - `structured.ts`: JSON output and structured metadata.
+- `writer-pretty.ts`: pretty output written to stderr with `WriterTransport`.
 - `context.ts`: inherited metadata with child loggers.
 - `processor.ts`: redaction and enrichment with a processor.
 - `memory.ts`: capture logs in memory.
@@ -308,6 +328,8 @@ interface Transport {
 interface Formatter {
   format(log: LogRecord): string;
 }
+
+type LogWriter = (output: string, log: LogRecord) => void;
 ```
 
 ### Constructors And Helpers
@@ -355,6 +377,7 @@ import {
   PrintfFormatter,
   RedactProcessor,
   Severity,
+  WriterTransport,
 } from "@jamx/logger";
 ```
 
