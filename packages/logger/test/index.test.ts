@@ -5,8 +5,11 @@ import {
   createCoreLogger,
   createLogger,
   createNamedLogger,
+  CompositeTransport,
+  ConsoleTransport,
   MemoryTransport,
   PrettyFormatter,
+  PrintfFormatter,
   Severity,
 } from "../src/index.js";
 
@@ -51,9 +54,9 @@ describe("Logger", () => {
 
     expect(transport.logs).toHaveLength(1);
     expect(transport.logs[0].meta).toEqual({
+      requestId: "req_42",
       logger: "worker",
       queue: "emails",
-      requestId: "req_42",
       jobId: "job_7",
     });
   });
@@ -70,8 +73,8 @@ describe("Logger", () => {
         process(log) {
           expect(log).toEqual({
             message: "created",
-            severity: Severity.Info,
             severityName: "info",
+            severity: Severity.Info,
             timestamp,
             meta: {
               requestId: "req_1",
@@ -94,6 +97,7 @@ describe("Logger", () => {
     logger.log(Severity.Info, "created", { requestId: "req_1" });
 
     expect(transport.logs).toHaveLength(1);
+
     expect(transport.logs[0]).toMatchObject({
       message: "processed",
       meta: {
@@ -106,11 +110,12 @@ describe("Logger", () => {
 
   it("does not process records filtered by severity", () => {
     const transport = new MemoryTransport();
+
     let processed = 0;
 
     const logger = createCoreLogger({
-      minSeverity: Severity.Warn,
       transport,
+      minSeverity: Severity.Warn,
       processor: {
         process(log) {
           processed += 1;
@@ -123,6 +128,59 @@ describe("Logger", () => {
 
     expect(processed).toBe(0);
     expect(transport.logs).toHaveLength(0);
+  });
+
+  it("falls back to the original record when a processor throws", () => {
+    const transport = new MemoryTransport();
+
+    const logger = createCoreLogger({
+      transport,
+      processor: {
+        process() {
+          throw new Error("processor failed");
+        },
+      },
+    });
+
+    expect(() => logger.log(Severity.Info, "still captured")).not.toThrow();
+    expect(transport.logs[0]?.message).toBe("still captured");
+  });
+
+  it("does not propagate transport or formatter failures", () => {
+    const transportLogger = createCoreLogger({
+      transport: {
+        capture() {
+          throw new Error("transport failed");
+        },
+      },
+    });
+
+    const formatterLogger = createCoreLogger({
+      transport: new ConsoleTransport({
+        format() {
+          throw new Error("formatter failed");
+        },
+      }),
+    });
+
+    expect(() => transportLogger.log(Severity.Info, "safe")).not.toThrow();
+    expect(() => formatterLogger.log(Severity.Info, "safe")).not.toThrow();
+  });
+
+  it("continues composite fan-out after a destination fails", () => {
+    const memory = new MemoryTransport();
+
+    const transport = new CompositeTransport([
+      {
+        capture() {
+          throw new Error("destination failed");
+        },
+      },
+      memory,
+    ]);
+
+    createCoreLogger({ transport }).log(Severity.Info, "delivered");
+    expect(memory.logs[0]?.message).toBe("delivered");
   });
 });
 
@@ -148,5 +206,22 @@ describe("PrettyFormatter", () => {
     );
 
     expect(output).not.toMatch(/\u001b\[/);
+  });
+});
+
+describe("PrintfFormatter", () => {
+  it("does not mutate the shared log record", () => {
+    const formatter = new PrintfFormatter();
+
+    const record = {
+      message: "hello %s",
+      severityName: "info",
+      severity: Severity.Info,
+      meta: { name: "world" },
+      timestamp: new Date("2026-03-03T11:12:35.123Z"),
+    };
+
+    formatter.format(record);
+    expect(record.message).toBe("hello %s");
   });
 });

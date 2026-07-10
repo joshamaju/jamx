@@ -27,8 +27,13 @@ export class CompositeTransport implements Transport {
 
   capture(log: LogRecord): void {
     for (const transport of this.transports) {
-      const trans = typeof transport == "function" ? transport(log) : transport;
-      trans?.capture(log);
+      try {
+        const resolved =
+          typeof transport === "function" ? transport(log) : transport;
+        resolved?.capture(log);
+      } catch {
+        // Fan-out is best-effort; one destination must not block the others.
+      }
     }
   }
 }

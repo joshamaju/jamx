@@ -14,8 +14,8 @@ describe("LineConsoleTransport", () => {
     const write = vi.fn();
 
     const transport = new LineConsoleTransport({
-      interactive: false,
       write,
+      interactive: false,
       formatter: {
         format(log: LogRecord) {
           return JSON.stringify(log.meta);
@@ -24,13 +24,13 @@ describe("LineConsoleTransport", () => {
     });
 
     transport.capture({
+      message: "starting",
       severityName: "info",
       severity: Severity.Info,
-      message: "starting",
       timestamp: new Date("2026-03-03T11:12:35.123Z"),
       meta: {
-        lineId: "job-123",
         finalize: true,
+        lineId: "job-123",
         requestId: "req_1",
       },
     });
@@ -44,8 +44,8 @@ describe("LineConsoleTransport", () => {
     const write = vi.fn();
 
     const transport = new LineConsoleTransport({
-      interactive: false,
       write,
+      interactive: false,
       formatter: {
         format(log: LogRecord) {
           return log.message;
@@ -54,19 +54,17 @@ describe("LineConsoleTransport", () => {
     });
 
     transport.capture({
+      message: "starting",
       severityName: "info",
       severity: Severity.Info,
-      message: "starting",
+      meta: { lineId: "job-123" },
       timestamp: new Date("2026-03-03T11:12:35.123Z"),
-      meta: {
-        lineId: "job-123",
-      },
     });
 
     transport.capture({
+      message: "failed",
       severityName: "error",
       severity: Severity.Error,
-      message: "failed",
       timestamp: new Date("2026-03-03T11:12:36.123Z"),
       meta: {
         lineId: "job-123",
@@ -83,8 +81,8 @@ describe("LineConsoleTransport", () => {
     const write = vi.fn();
 
     const transport = new LineConsoleTransport({
-      interactive: true,
       write,
+      interactive: true,
       formatter: {
         format(log: LogRecord) {
           return log.message;
@@ -93,27 +91,25 @@ describe("LineConsoleTransport", () => {
     });
 
     transport.capture({
+      message: "starting",
       severityName: "info",
       severity: Severity.Info,
-      message: "starting",
+      meta: { lineId: "job-123" },
       timestamp: new Date("2026-03-03T11:12:35.123Z"),
-      meta: {
-        lineId: "job-123",
-      },
     });
 
     transport.capture({
+      meta: {},
       severityName: "info",
       severity: Severity.Info,
       message: "some other log",
       timestamp: new Date("2026-03-03T11:12:35.223Z"),
-      meta: {},
     });
 
     transport.capture({
+      message: "my error",
       severityName: "error",
       severity: Severity.Error,
-      message: "my error",
       timestamp: new Date("2026-03-03T11:12:35.323Z"),
       meta: {
         lineId: "job-123",
@@ -122,19 +118,19 @@ describe("LineConsoleTransport", () => {
     });
 
     transport.capture({
+      message: "retrying",
       severityName: "info",
       severity: Severity.Info,
-      message: "retrying",
+      meta: { lineId: "job-123" },
       timestamp: new Date("2026-03-03T11:12:35.423Z"),
-      meta: {
-        lineId: "job-123",
-      },
     });
 
     await flushTransport();
 
     expect(write.mock.calls).toEqual([
-      ["starting\n\rsome other log\u001b[1A\r\u001b[2Kmy error\u001b[1B\r\n\rretrying"],
+      [
+        "starting\n\rsome other log\u001b[1A\r\u001b[2Kmy error\u001b[1B\r\n\rretrying",
+      ],
     ]);
   });
 
@@ -142,8 +138,8 @@ describe("LineConsoleTransport", () => {
     const write = vi.fn();
 
     const transport = new LineConsoleTransport({
-      interactive: true,
       write,
+      interactive: true,
       formatter: {
         format(log: LogRecord) {
           return log.message;
@@ -152,29 +148,25 @@ describe("LineConsoleTransport", () => {
     });
 
     transport.capture({
+      message: "starting",
       severityName: "info",
       severity: Severity.Info,
-      message: "starting",
+      meta: { lineId: "job-123" },
       timestamp: new Date("2026-03-03T11:12:35.123Z"),
-      meta: {
-        lineId: "job-123",
-      },
     });
 
     transport.capture({
+      message: "starting",
       severityName: "info",
       severity: Severity.Info,
-      message: "starting",
+      meta: { lineId: "job-123" },
       timestamp: new Date("2026-03-03T11:12:35.223Z"),
-      meta: {
-        lineId: "job-123",
-      },
     });
 
     transport.capture({
+      message: "starting",
       severityName: "info",
       severity: Severity.Info,
-      message: "starting",
       timestamp: new Date("2026-03-03T11:12:35.323Z"),
       meta: {
         lineId: "job-123",

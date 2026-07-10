@@ -9,48 +9,35 @@ function redactValue(
   value: unknown,
   keys: ReadonlySet<string>,
   replacement: unknown,
-  seen: WeakSet<object>,
+  copies: WeakMap<object, unknown>,
 ): unknown {
   if (Array.isArray(value)) {
-    if (seen.has(value)) {
-      return value;
-    }
+    const existing = copies.get(value);
+    if (existing) return existing;
 
-    seen.add(value);
+    const copy: unknown[] = [];
+    copies.set(value, copy);
+    copy.push(
+      ...value.map((item) => redactValue(item, keys, replacement, copies)),
+    );
 
-    let changed = false;
-    const nextValue = value.map((item) => {
-      const redactedItem = redactValue(item, keys, replacement, seen);
-      changed ||= redactedItem !== item;
-      return redactedItem;
-    });
-
-    return changed ? nextValue : value;
+    return copy;
   }
 
   if (isPlainObject(value)) {
-    if (seen.has(value)) {
-      return value;
+    const existing = copies.get(value);
+    if (existing) return existing;
+
+    const copy: LogMeta = {};
+    copies.set(value, copy);
+
+    for (const [key, nestedValue] of Object.entries(value)) {
+      copy[key] = keys.has(key)
+        ? replacement
+        : redactValue(nestedValue, keys, replacement, copies);
     }
 
-    seen.add(value);
-
-    let changed = false;
-    const nextValue = Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => {
-        if (keys.has(key)) {
-          changed ||= replacement !== nestedValue;
-          return [key, replacement];
-        }
-
-        const redactedValue = redactValue(nestedValue, keys, replacement, seen);
-        changed ||= redactedValue !== nestedValue;
-
-        return [key, redactedValue];
-      }),
-    );
-
-    return changed ? nextValue : value;
+    return copy;
   }
 
   return value;
@@ -61,8 +48,8 @@ export class RedactProcessor implements Processor {
   private readonly replacement: unknown;
 
   constructor(keys: readonly string[], options: RedactProcessorOptions = {}) {
-    this.keys = new Set(keys);
     this.replacement = options.replacement ?? "[redacted]";
+    this.keys = new Set(keys);
   }
 
   process(log: LogRecord): LogRecord {
@@ -70,12 +57,9 @@ export class RedactProcessor implements Processor {
       log.meta,
       this.keys,
       this.replacement,
-      new WeakSet<object>(),
+      new WeakMap<object, unknown>(),
     ) as LogMeta;
 
-    return {
-      ...log,
-      meta,
-    };
+    return { ...log, meta };
   }
 }

@@ -11,8 +11,8 @@ export enum Severity {
 export type LogMeta = Record<string, unknown>;
 
 export interface LogRecord {
-  severity: Severity;
   severityName: string;
+  severity: Severity;
   timestamp: Date;
   message: string;
   meta: LogMeta;

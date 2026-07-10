@@ -62,11 +62,21 @@ export class CoreLogger implements ILogger {
       severityName: getSeverityName(severity),
     };
 
-    const processed_record = this._processor
-      ? this._processor.process(record)
-      : record;
+    let processed_record = record;
 
-    this._transport.capture(processed_record);
+    if (this._processor) {
+      try {
+        processed_record = this._processor.process(record);
+      } catch {
+        // Logging is best-effort. A processor must not break application code.
+      }
+    }
+
+    try {
+      this._transport.capture(processed_record);
+    } catch {
+      // Transport and formatter failures must not break application code.
+    }
   }
 
   private shouldLog(severity: Severity): boolean {

@@ -5,17 +5,18 @@ import {
   DefaultsProcessor,
   ErrorProcessor,
   RedactProcessor,
+  JsonFormatter,
   Severity,
   type LogRecord,
 } from "../src/index.js";
 
 function createRecord(meta: Record<string, unknown>): LogRecord {
   return {
-    message: "test",
-    severity: Severity.Info,
-    severityName: "info",
-    timestamp: new Date("2026-03-03T11:12:35.123Z"),
     meta,
+    message: "test",
+    severityName: "info",
+    severity: Severity.Info,
+    timestamp: new Date("2026-03-03T11:12:35.123Z"),
   };
 }
 
@@ -45,16 +46,17 @@ describe("Processors", () => {
       service: "api",
     });
 
-    expect(
-      processor.process(createRecord({ service: "worker" })).meta,
-    ).toEqual({
-      env: "production",
-      service: "worker",
-    });
+    expect(processor.process(createRecord({ service: "worker" })).meta).toEqual(
+      {
+        env: "production",
+        service: "worker",
+      },
+    );
   });
 
   it("redacts matching metadata values without changing field names", () => {
     const processor = new RedactProcessor(["token", "password"]);
+
     const processed = processor.process(
       createRecord({
         token: "secret-token",
@@ -74,17 +76,15 @@ describe("Processors", () => {
     });
   });
 
-  it("leaves non-redacted metadata values unchanged", () => {
-    const processor = new RedactProcessor(["token"]);
-    const settings = { theme: "dark" };
+  it("preserves non-redacted metadata values", () => {
     const tags = ["admin"];
+    const settings = { theme: "dark" };
     const record = createRecord({ settings, tags });
+    const processor = new RedactProcessor(["token"]);
 
     const processed = processor.process(record);
 
-    expect(processed.meta).toBe(record.meta);
-    expect(processed.meta.settings).toBe(settings);
-    expect(processed.meta.tags).toBe(tags);
+    expect(processed.meta).toEqual(record.meta);
   });
 
   it("does not stringify circular metadata while redacting", () => {
@@ -94,12 +94,14 @@ describe("Processors", () => {
 
     const processed = processor.process(createRecord({ circular }));
 
-    expect(processed.meta.circular).toMatchObject({
-      token: "[redacted]",
-    });
-    expect(
-      (processed.meta.circular as Record<string, unknown>).self,
-    ).toBe(circular);
+    expect(processed.meta.circular).toMatchObject({ token: "[redacted]" });
+
+    expect((processed.meta.circular as Record<string, unknown>).self).toBe(
+      processed.meta.circular,
+    );
+
+    const output = new JsonFormatter().format(processed);
+    expect(output).not.toContain("secret-token");
   });
 
   it("normalizes error values in metadata", () => {
@@ -120,9 +122,9 @@ describe("Processors", () => {
   });
 
   it("leaves non-error metadata values unchanged", () => {
-    const processor = new ErrorProcessor();
-    const settings = { theme: "dark" };
     const tags = ["admin"];
+    const settings = { theme: "dark" };
+    const processor = new ErrorProcessor();
     const record = createRecord({ settings, tags });
 
     const processed = processor.process(record);
@@ -134,9 +136,11 @@ describe("Processors", () => {
 
   it("does not stringify circular metadata while normalizing errors", () => {
     const processor = new ErrorProcessor();
+
     const circular: Record<string, unknown> = {
       error: new Error("request failed"),
     };
+
     circular.self = circular;
 
     const processed = processor.process(createRecord({ circular }));
@@ -147,8 +151,9 @@ describe("Processors", () => {
       name: "Error",
       message: "request failed",
     });
-    expect(
-      (processed.meta.circular as Record<string, unknown>).self,
-    ).toBe(circular);
+
+    expect((processed.meta.circular as Record<string, unknown>).self).toBe(
+      circular,
+    );
   });
 });
