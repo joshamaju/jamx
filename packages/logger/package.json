@@ -40,10 +40,15 @@
   },
   "scripts": {
     "build": "tsc",
+    "benchmark": "pnpm run benchmark:core",
+    "benchmark:core": "tsx ./benchmark/core.ts",
+    "benchmark:comparison": "tsx ./benchmark/comparison.ts",
+    "benchmark:worker": "pnpm build && tsx ./benchmark/worker.ts",
     "test": "vitest run",
     "prepublish": "pnpm build",
     "prepack": "pnpm run build",
     "typecheck": "tsc --noEmit",
+    "typecheck:benchmarks": "tsc --noEmit --module nodenext --moduleResolution nodenext --target ES2020 --strict --esModuleInterop --skipLibCheck benchmark/*.ts",
     "version": "changeset version",
     "release": "changeset publish",
     "dev": "tsx ./example/basic.ts",
@@ -57,7 +62,8 @@
     "example:formatter": "tsx ./example/custom-formatter.ts",
     "example:printf": "tsx ./example/printf.ts",
     "example:line": "tsx ./example/line-console.ts",
-    "typecheck:examples": "tsc --noEmit --module nodenext --moduleResolution nodenext --target ES2020 --strict --noUnusedLocals --noUnusedParameters --esModuleInterop --skipLibCheck example/*.ts"
+    "example:worker": "pnpm build && tsx ./example/worker/main.ts",
+    "typecheck:examples": "tsc --noEmit --module nodenext --moduleResolution nodenext --target ES2020 --strict --noUnusedLocals --noUnusedParameters --esModuleInterop --skipLibCheck example/*.ts example/worker/*.ts"
   },
   "keywords": [
     "logger",
@@ -85,9 +91,13 @@
     "@changesets/cli": "^2.30.0",
     "@types/node": "^25.3.3",
     "elegant-spinner": "^3.0.0",
+    "pino": "^10.3.1",
+    "pino-abstract-transport": "^3.0.0",
+    "tinybench": "^3.1.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.2",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "winston": "^3.19.0"
   },
   "dependencies": {
     "@paydirt/fmt": "^0.3.1"

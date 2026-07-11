@@ -243,6 +243,7 @@ pnpm run example:composite
 pnpm run example:formatter
 pnpm run example:printf
 pnpm run example:line
+pnpm run example:worker
 ```
 
 The example files live in `example/`:
@@ -257,6 +258,8 @@ The example files live in `example/`:
 - `custom-formatter.ts`: implement a formatter.
 - `printf.ts`: format messages with printf-style placeholders.
 - `line-console.ts`: update stable terminal lines.
+- `worker/`: advanced Node worker transport with a bounded pending-record
+  count, delivery acknowledgements, flush boundaries, and graceful shutdown.
 
 ## API Reference
 
@@ -395,3 +398,16 @@ pnpm run typecheck
 pnpm run typecheck:examples
 pnpm test
 ```
+
+## Benchmarks
+
+Run the internal regression suite or the informational Pino/Winston comparison:
+
+```bash
+pnpm run benchmark
+pnpm run benchmark:comparison
+pnpm run benchmark:worker
+```
+
+Benchmarks use in-memory sinks and are not enforced as exact CI performance
+thresholds. See `benchmark/README.md` for methodology and interpretation.

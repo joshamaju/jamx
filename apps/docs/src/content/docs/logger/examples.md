@@ -16,6 +16,7 @@ pnpm run example:composite
 pnpm run example:formatter
 pnpm run example:printf
 pnpm run example:line
+pnpm run example:worker
 ```
 
 ## Example Files
@@ -30,3 +31,5 @@ pnpm run example:line
 - `custom-formatter.ts`: implement a formatter.
 - `printf.ts`: interpolate printf-style messages.
 - `line-console.ts`: update stable terminal lines.
+- `worker/`: advanced Node worker transport with bounded pending records,
+  acknowledgements, flushing, and graceful shutdown.

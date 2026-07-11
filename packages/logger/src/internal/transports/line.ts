@@ -22,12 +22,12 @@ function isFinalized(value: unknown): boolean {
 }
 
 function stripLineMeta(meta: LogMeta): LogMeta {
-  const nextMeta = { ...meta };
+  const next_meta = { ...meta };
 
-  delete nextMeta[LINE_ID_META_KEY];
-  delete nextMeta[FINALIZE_META_KEY];
+  delete next_meta[LINE_ID_META_KEY];
+  delete next_meta[FINALIZE_META_KEY];
 
-  return nextMeta;
+  return next_meta;
 }
 
 function normalizeLog(log: LogRecord): LogRecord {
@@ -35,12 +35,12 @@ function normalizeLog(log: LogRecord): LogRecord {
 }
 
 export class LineConsoleTransport implements Transport {
-  private readonly activeLines = new Map<string, ActiveLine>();
+  private readonly active_lines = new Map<string, ActiveLine>();
   private readonly write: (output: string) => void;
-  private readonly renderedLines: string[] = [];
-  private readonly pendingWrites: string[] = [];
+  private readonly rendered_lines: string[] = [];
+  private readonly pending_writes: string[] = [];
   private readonly interactive: boolean;
-  private flushScheduled = false;
+  private flush_scheduled = false;
   private _formatter: Formatter;
   private closed = false;
 
@@ -67,43 +67,43 @@ export class LineConsoleTransport implements Transport {
   capture(log: LogRecord): void {
     if (this.closed) return;
 
-    const normalizedLog = normalizeLog(log);
-    const output = this._formatter.format(normalizedLog);
+    const normalized_log = normalizeLog(log);
+    const output = this._formatter.format(normalized_log);
 
     if (!this.interactive) {
       this.enqueueWrite(`${output}\n`);
       return;
     }
 
-    const lineId = log.meta[LINE_ID_META_KEY];
+    const line_id = log.meta[LINE_ID_META_KEY];
     const finalize = isFinalized(log.meta[FINALIZE_META_KEY]);
 
-    if (!isLineId(lineId)) {
+    if (!isLineId(line_id)) {
       this.appendRenderedLine(output);
-      this.renderedLines.push(output);
+      this.rendered_lines.push(output);
       return;
     }
 
-    const activeLine = this.activeLines.get(lineId);
+    const active_line = this.active_lines.get(line_id);
 
-    if (activeLine) {
-      if (this.renderedLines[activeLine.index] !== output) {
-        this.replaceRenderedLine(activeLine.index, output);
-        this.renderedLines[activeLine.index] = output;
+    if (active_line) {
+      if (this.rendered_lines[active_line.index] !== output) {
+        this.replaceRenderedLine(active_line.index, output);
+        this.rendered_lines[active_line.index] = output;
       }
 
       if (finalize) {
-        this.activeLines.delete(lineId);
+        this.active_lines.delete(line_id);
       }
 
       return;
     }
 
     this.appendRenderedLine(output);
-    this.renderedLines.push(output);
+    this.rendered_lines.push(output);
 
     if (!finalize) {
-      this.activeLines.set(lineId, { index: this.renderedLines.length - 1 });
+      this.active_lines.set(line_id, { index: this.rendered_lines.length - 1 });
     }
   }
 
@@ -118,7 +118,7 @@ export class LineConsoleTransport implements Transport {
   }
 
   private appendRenderedLine(output: string): void {
-    if (this.renderedLines.length === 0) {
+    if (this.rendered_lines.length === 0) {
       this.enqueueWrite(output);
       return;
     }
@@ -127,17 +127,17 @@ export class LineConsoleTransport implements Transport {
   }
 
   private replaceRenderedLine(index: number, output: string): void {
-    const linesBelow = this.renderedLines.length - index - 1;
+    const lines_below = this.rendered_lines.length - index - 1;
     let sequence = "";
 
-    if (linesBelow > 0) {
-      sequence += `\u001b[${linesBelow}A`;
+    if (lines_below > 0) {
+      sequence += `\u001b[${lines_below}A`;
     }
 
     sequence += `\r\u001b[2K${output}`;
 
-    if (linesBelow > 0) {
-      sequence += `\u001b[${linesBelow}B`;
+    if (lines_below > 0) {
+      sequence += `\u001b[${lines_below}B`;
     }
 
     sequence += "\r";
@@ -148,25 +148,25 @@ export class LineConsoleTransport implements Transport {
   private enqueueWrite(output: string): void {
     if (output.length === 0) return;
 
-    this.pendingWrites.push(output);
+    this.pending_writes.push(output);
 
-    if (this.flushScheduled) return;
+    if (this.flush_scheduled) return;
 
-    this.flushScheduled = true;
+    this.flush_scheduled = true;
 
     queueMicrotask(() => {
-      this.flushScheduled = false;
+      this.flush_scheduled = false;
       this.flushPendingWrites();
     });
   }
 
   private flushPendingWrites(): void {
-    if (this.pendingWrites.length === 0) {
+    if (this.pending_writes.length === 0) {
       return;
     }
 
-    const output = this.pendingWrites.join("");
-    this.pendingWrites.length = 0;
+    const output = this.pending_writes.join("");
+    this.pending_writes.length = 0;
     this.write(output);
   }
 }
