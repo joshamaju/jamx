@@ -23,30 +23,37 @@ export function assertMeta(
   }
 }
 
-export function safeStringify(value: unknown): string {
+export function safeStringify(
+  value: unknown,
+  space?: string | number,
+): string {
   const seen = new WeakSet<object>();
 
-  return JSON.stringify(value, (_, nestedValue: unknown) => {
-    if (nestedValue instanceof Error) {
-      return {
-        name: nestedValue.name,
-        message: nestedValue.message,
-        stack: nestedValue.stack,
-      };
-    }
-
-    if (typeof nestedValue === "bigint") {
-      return nestedValue.toString();
-    }
-
-    if (nestedValue && typeof nestedValue === "object") {
-      if (seen.has(nestedValue)) {
-        return "[Circular]";
+  return JSON.stringify(
+    value,
+    (_, nestedValue: unknown) => {
+      if (nestedValue instanceof Error) {
+        return {
+          name: nestedValue.name,
+          message: nestedValue.message,
+          stack: nestedValue.stack,
+        };
       }
 
-      seen.add(nestedValue);
-    }
+      if (typeof nestedValue === "bigint") {
+        return nestedValue.toString();
+      }
 
-    return nestedValue;
-  });
+      if (nestedValue && typeof nestedValue === "object") {
+        if (seen.has(nestedValue)) {
+          return "[Circular]";
+        }
+
+        seen.add(nestedValue);
+      }
+
+      return nestedValue;
+    },
+    space,
+  );
 }
