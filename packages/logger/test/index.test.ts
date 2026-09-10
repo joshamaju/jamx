@@ -7,6 +7,7 @@ import {
   createNamedLogger,
   CompositeTransport,
   ConsoleTransport,
+  JsonFormatter,
   MemoryTransport,
   PrettyFormatter,
   PrintfFormatter,
@@ -314,5 +315,60 @@ describe("PrintfFormatter", () => {
 
     formatter.format(record);
     expect(record.message).toBe("hello %s");
+  });
+});
+
+describe("JsonFormatter", () => {
+  it("formats compact JSON by default", () => {
+    const formatter = new JsonFormatter();
+
+    const output = formatter.format({
+      message: "Ready",
+      severityName: "debug",
+      severity: Severity.Debug,
+      timestamp: new Date("2026-03-03T11:12:35.123Z"),
+      meta: {},
+    });
+
+    expect(output).not.toContain("\n");
+  });
+
+  it("formats structured logs as indented JSON", () => {
+    const formatter = new JsonFormatter({ indent: 2 });
+
+    const output = formatter.format({
+      message: "Request completed",
+      severityName: "info",
+      severity: Severity.Info,
+      timestamp: new Date("2026-03-03T11:12:35.123Z"),
+      meta: {
+        requestId: "req_91f5",
+        durationMs: 18,
+      },
+    });
+
+    expect(output).toBe(`{
+  "timestamp": "2026-03-03T11:12:35.123Z",
+  "severity": "info",
+  "message": "Request completed",
+  "meta": {
+    "requestId": "req_91f5",
+    "durationMs": 18
+  }
+}`);
+  });
+
+  it("supports a custom indentation", () => {
+    const formatter = new JsonFormatter({ indent: "\t" });
+
+    const output = formatter.format({
+      message: "Ready",
+      severityName: "debug",
+      severity: Severity.Debug,
+      timestamp: new Date("2026-03-03T11:12:35.123Z"),
+      meta: {},
+    });
+
+    expect(output).toContain('\n\t"timestamp"');
   });
 });

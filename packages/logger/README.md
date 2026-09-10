@@ -74,6 +74,9 @@ logger.log(Severity.Info, "charge succeeded", {
 });
 ```
 
+`JsonFormatter` emits compact JSON by default. Pass an `indent` number or
+string for readable output, for example `new JsonFormatter({ indent: 2 })`.
+
 ## Convenience Logging API
 
 `CoreLogger` exposes the low-level `log(severity, message, meta)` method.
@@ -169,7 +172,7 @@ Built-in transports:
 Built-in formatters:
 
 - `PrettyFormatter`: human-readable console output.
-- `JsonFormatter`: JSON lines for structured output.
+- `JsonFormatter`: structured JSON output, with optional indentation.
 - `TextFormatter`: compact text output.
 - `PrintfFormatter`: printf-style message interpolation with metadata values.
 
@@ -235,6 +238,7 @@ Run examples from this package directory:
 ```bash
 pnpm run example:basic
 pnpm run example:structured
+pnpm run example:pretty-json
 pnpm run example:writer-pretty
 pnpm run example:context
 pnpm run example:processor
@@ -250,6 +254,7 @@ The example files live in `example/`:
 
 - `basic.ts`: named console logger with pretty output.
 - `structured.ts`: JSON output and structured metadata.
+- `pretty-json.ts`: indented JSON output with nested metadata.
 - `writer-pretty.ts`: pretty output written to stderr with `WriterTransport`.
 - `context.ts`: inherited metadata with child loggers.
 - `processor.ts`: redaction and enrichment with a processor.
