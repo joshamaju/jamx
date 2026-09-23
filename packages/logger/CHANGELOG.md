@@ -1,5 +1,11 @@
 # @jamx/logger
 
+## 0.3.1
+
+### Patch Changes
+
+- b276738: Add support for pretty JSON formatting
+
 ## 0.3.0
 
 ### Minor Changes
